@@ -1,0 +1,65 @@
+services:
+  db:
+    image: mysql:5.7
+    container_name: ventas_mysql_db
+    restart: unless-stopped
+    env_file:
+      - .env
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpassword}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-app_db}
+      MYSQL_USER: ${MYSQL_USER:-app_user}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-app_password}
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./database/00-charset.sql:/docker-entrypoint-initdb.d/00-charset.sql:ro
+      - ./database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./database/02-superadmin.sql:/docker-entrypoint-initdb.d/02-superadmin.sql:ro
+      - ./database/03-admin.sql:/docker-entrypoint-initdb.d/03-admin.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "MYSQL_PWD=$$MYSQL_ROOT_PASSWORD mysqladmin ping -h 127.0.0.1 -uroot --silent"]
+      interval: 10s
+      timeout: 10s
+      retries: 36
+      start_period: 120s
+
+  api:
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile
+    container_name: ventas_php_api
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DB_HOST: db
+      DB_NAME: ${MYSQL_DATABASE:-app_db}
+      DB_USER: ${MYSQL_USER:-app_user}
+      DB_PASSWORD: ${MYSQL_PASSWORD:-app_password}
+      JWT_SECRET: ${JWT_SECRET:-super_secret_key_123}
+      JWT_TTL: ${JWT_TTL:-3600}
+      APP_ENV: ${APP_ENV:-development}
+      APP_DEBUG: ${APP_DEBUG:-true}
+      APP_URL: ${APP_URL:-http://localhost:18080}
+    depends_on:
+      db:
+        condition: service_healthy
+    expose:
+      - "80"
+
+  web:
+    build:
+      context: .
+      dockerfile: docker/web/Dockerfile
+    container_name: ventas_web
+    restart: unless-stopped
+    ports:
+      - "${WEB_PORT:-18080}:80"
+    depends_on:
+      - api
+
+volumes:
+  db_data:

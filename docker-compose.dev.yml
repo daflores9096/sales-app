@@ -1,0 +1,7 @@
+# Tras cambios en el front: cd frontend && npm run build
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d web
+
+services:
+  web:
+    volumes:
+      - ./frontend/dist:/usr/share/nginx/html:ro

@@ -1,0 +1,21 @@
+### OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+.history/
+
+### Node / frontend
+**/node_modules/
+**/dist/
+.env
+**/.angular/
+**/out-tsc/
+**/coverage/
+**/*.log
+
+### PHP / Composer
+**/vendor/
+
+### Misc
+**/.sass-cache/

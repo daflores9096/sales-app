@@ -1,0 +1,29 @@
+#<IfModule mod_headers.c>
+#  # 🌐 Habilitar CORS para Angular en localhost
+#  Header always set Access-Control-Allow-Origin "http://localhost:4300"
+#  Header always set Access-Control-Allow-Methods "GET,POST,PUT,DELETE,OPTIONS"
+#  Header always set Access-Control-Allow-Headers "Content-Type,Authorization,X-Requested-With"
+#  Header always set Access-Control-Allow-Credentials "true"
+#</IfModule>
+#
+## ✅ Manejar preflight (OPTIONS) directamente desde Apache
+#RewriteEngine On
+#RewriteCond %{REQUEST_METHOD} OPTIONS
+#RewriteRule ^(.*)$ $1 [R=200,L]
+#
+## 🔁 Mantener tu reescritura original de rutas (para API y Angular)
+#RewriteBase /
+#RewriteCond %{REQUEST_FILENAME} !-f
+#RewriteCond %{REQUEST_FILENAME} !-d
+#RewriteRule ^ index.php [L]
+#
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+
+  # Redirige todo a index.php (excepto archivos reales)
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteRule ^ index.php [L]
+</IfModule>

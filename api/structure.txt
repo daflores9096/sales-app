@@ -1,0 +1,69 @@
+sysventas/
+│
+├── docker-compose.yml
+├── php/
+│   └── Dockerfile
+│
+├── db/
+│   ├── schema.sql                # Script completo de base de datos
+│   └── seed.sql                  # (Opcional) datos iniciales adicionales
+│
+├── public/
+│   └── index.php                 # Punto de entrada del backend (router principal)
+│
+├── scripts/
+│   └── create_admin.php          # Script CLI para crear usuarios manualmente
+│
+├── src/
+│   ├── Config/
+│   │   └── config.php            # Carga variables del entorno (.env)
+│   │
+│   ├── Controllers/
+│   │   ├── AuthController.php
+│   │   ├── ProductController.php
+│   │   ├── SaleController.php
+│   │   ├── ReportController.php
+│   │   └── UserController.php
+│   │
+│   ├── Factory/
+│   │   ├── RepositoryFactory.php
+│   │   └── ServiceFactory.php
+│   │
+│   ├── Models/
+│   │   ├── User.php
+│   │   ├── Product.php
+│   │   ├── Sale.php
+│   │   └── SaleItem.php
+│   │
+│   ├── Repositories/
+│   │   ├── UserRepository.php
+│   │   ├── ProductRepository.php
+│   │   ├── SaleRepository.php
+│   │   └── ReportRepository.php
+│   │
+│   ├── Routes/
+│   │   ├── routes.php            # Router principal que incluye los demás
+│   │   ├── auth.php
+│   │   ├── users.php
+│   │   ├── products.php
+│   │   ├── sales.php
+│   │   └── reports.php
+│   │
+│   ├── Services/
+│   │   ├── AuthService.php
+│   │   ├── UserService.php
+│   │   ├── ProductService.php
+│   │   ├── SaleService.php
+│   │   └── ReportService.php
+│   │
+│   ├── Utils/
+│   │   ├── Database.php          # Singleton PDO
+│   │   ├── Jwt.php               # Manejo de tokens JWT
+│   │   ├── AuthMiddleware.php    # Validación de token y roles
+│   │   └── Response.php          # Helper para respuestas JSON unificadas
+│   │
+│   └── composer.json             # Dependencias del proyecto PHP
+│
+├── .env                          # Variables de entorno (DB, JWT_SECRET, etc.)
+├── .dockerignore
+└── README.md

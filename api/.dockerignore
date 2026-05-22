@@ -1,0 +1,9 @@
+vendor
+.idea
+.git
+.gitignore
+README.md
+docker-compose*.yml
+package-lock.json
+.dockerignore
+
