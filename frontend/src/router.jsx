@@ -23,7 +23,7 @@ export const router = createBrowserRouter([
       {
         path: 'dashboard',
         element: (
-          <RequireRole roles={['admin', 'superadmin']}>
+          <RequireRole roles={['admin', 'superadmin', 'user']}>
             <DashboardPage />
           </RequireRole>
         ),

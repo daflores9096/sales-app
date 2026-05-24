@@ -12,23 +12,28 @@ class ReportService
         $this->reportRepository = new ReportRepository();
     }
 
-    public function getSalesByDay(): array
+    public function getSalesByDay(?string $from = null, ?string $to = null, ?int $userId = null): array
     {
-        return $this->reportRepository->salesByDay();
+        return $this->reportRepository->salesByDay($from, $to, $userId);
     }
 
-    public function getSalesByProduct(): array
+    public function getSalesByProduct(?string $from = null, ?string $to = null, ?int $userId = null): array
     {
-        return $this->reportRepository->salesByProduct();
+        return $this->reportRepository->salesByProduct($from, $to, $userId);
     }
 
-    public function getSalesByUser(): array
+    public function getSalesByPaymentMethod(?string $from = null, ?string $to = null, ?int $userId = null): array
     {
-        return $this->reportRepository->salesByUser();
+        return $this->reportRepository->salesByPaymentMethod($from, $to, $userId);
     }
 
-    public function getTotalSales(): array
+    public function getSalesByUser(?string $from = null, ?string $to = null, ?int $userId = null): array
     {
-        return $this->reportRepository->totalSales();
+        return $this->reportRepository->salesByUser($from, $to, $userId);
+    }
+
+    public function getTotalSales(?string $from = null, ?string $to = null, ?int $userId = null): array
+    {
+        return $this->reportRepository->totalSales($from, $to, $userId);
     }
 }

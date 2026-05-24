@@ -24,12 +24,20 @@ class SaleController
         $input = json_decode(file_get_contents('php://input'), true);
 
         $items = $input['items'] ?? [];
+        $paymentMethod = $input['payment_method'] ?? 'cash';
+
         if (empty($items)) {
             Response::error('Debe incluir al menos un producto en la venta', 400);
+            return;
+        }
+
+        if (!in_array($paymentMethod, ['cash', 'qr', 'card'], true)) {
+            Response::error('Tipo de venta inválido', 422);
+            return;
         }
 
         try {
-            $saleId = $this->saleService->createSale($user->sub, $items);
+            $saleId = $this->saleService->createSale($user->sub, $items, $paymentMethod);
             Response::json([
                 'status' => 'success',
                 'data' => ['sale_id' => $saleId]

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { login as apiLogin } from '../api.js';
-import { getRoleFromToken, useAuth } from '../auth.jsx';
+import { useAuth } from '../auth.jsx';
 
 export default function LoginPage() {
   const { isLoggedIn, login } = useAuth();
@@ -30,8 +30,7 @@ export default function LoginPage() {
         return;
       }
       login(res.data.token, res.data.user);
-      const effectiveRole = res.data.user?.role || getRoleFromToken(res.data.token);
-      navigate(effectiveRole === 'user' ? '/sales' : '/dashboard', { replace: true });
+      navigate('/dashboard', { replace: true });
     } catch (err) {
       setError(err.status === 401 ? 'Credenciales incorrectas' : err.message || 'Error al iniciar sesión');
     } finally {
@@ -40,12 +39,17 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-100 p-4">
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#f4f7fb] p-4">
+      <div className="absolute inset-x-0 top-0 h-80 bg-gradient-to-r from-[#071a33] via-[#0b2545] to-[#0f3a68]" />
+      <div className="absolute left-1/2 top-20 h-52 w-52 -translate-x-1/2 rounded-full bg-white/20 blur-3xl" />
       <form
         onSubmit={handleSubmit}
-        className="w-full max-w-sm rounded-2xl bg-white p-8 shadow-lg"
+        className="relative w-full max-w-sm rounded-2xl bg-white p-8 shadow-2xl"
       >
-        <h1 className="mb-6 text-center text-2xl font-bold text-slate-900">Sales App</h1>
+        <div className="-mt-14 mb-8 rounded-2xl bg-gradient-to-r from-[#0b2545] to-[#0f3a68] px-6 py-5 text-center text-white shadow-lg shadow-blue-900/30">
+          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-white/70">Bienvenido</p>
+          <h1 className="mt-1 text-2xl font-bold">Sales App</h1>
+        </div>
         {error && (
           <div className="mb-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>
         )}
@@ -54,7 +58,7 @@ export default function LoginPage() {
         </label>
         <input
           id="user"
-          className="mb-4 w-full rounded-lg border border-slate-300 px-3 py-2"
+          className="mb-4 w-full rounded-xl border border-slate-300 px-3 py-2.5"
           value={username}
           onChange={(e) => setUsername(e.target.value)}
           autoComplete="username"
@@ -65,7 +69,7 @@ export default function LoginPage() {
         <input
           id="pass"
           type="password"
-          className="mb-6 w-full rounded-lg border border-slate-300 px-3 py-2"
+          className="mb-6 w-full rounded-xl border border-slate-300 px-3 py-2.5"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           autoComplete="current-password"
@@ -73,7 +77,7 @@ export default function LoginPage() {
         <button
           type="submit"
           disabled={loading}
-          className="w-full rounded-lg bg-indigo-600 py-2.5 font-medium text-white hover:bg-indigo-700 disabled:opacity-60"
+          className="w-full rounded-xl bg-indigo-600 py-2.5 font-semibold uppercase tracking-wide text-white hover:bg-indigo-700 disabled:opacity-60"
         >
           {loading ? 'Entrando…' : 'Iniciar sesión'}
         </button>

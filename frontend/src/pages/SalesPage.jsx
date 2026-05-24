@@ -1,5 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { createSale, getProducts } from '../api.js';
+import Modal from '../components/Modal.jsx';
+
+const PAYMENT_METHODS = [
+  { value: 'cash', label: 'Efectivo' },
+  { value: 'qr', label: 'QR' },
+  { value: 'card', label: 'Tarjeta' },
+];
 
 export default function SalesPage() {
   const [products, setProducts] = useState([]);
@@ -7,6 +14,9 @@ export default function SalesPage() {
   const [cart, setCart] = useState([]);
   const [search, setSearch] = useState('');
   const [scannerMode, setScannerMode] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState('cash');
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const searchRef = useRef(null);
 
@@ -75,11 +85,19 @@ export default function SalesPage() {
 
   const cartTotal = cart.reduce((sum, p) => sum + p.qty * Number(p.price_sale ?? p.price), 0);
 
+  function openCheckoutConfirm() {
+    if (!cart.length) return;
+    setPaymentMethod('cash');
+    setShowConfirmModal(true);
+  }
+
   async function checkout() {
     if (!cart.length) return;
+    setSaving(true);
     setError('');
     try {
       await createSale({
+        payment_method: paymentMethod,
         items: cart.map((p) => ({
           product_id: p.id,
           quantity: p.qty,
@@ -88,18 +106,29 @@ export default function SalesPage() {
       });
       setCart([]);
       setSearch('');
+      setShowConfirmModal(false);
       await loadProducts();
       searchRef.current?.focus();
     } catch (err) {
       setError(err.message || 'No se pudo registrar la venta');
     }
+    finally {
+      setSaving(false);
+    }
+  }
+
+  function clearCart() {
+    if (!cart.length) return;
+    setCart([]);
+    setSearch('');
+    searchRef.current?.focus();
   }
 
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-2xl font-bold text-slate-900">Ventas (TPV)</h1>
-        <p className="text-sm text-slate-500">Selecciona productos y registra la venta</p>
+        <h1 className="text-2xl font-bold text-white">Ventas (TPV)</h1>
+        <p className="text-sm text-white/75">Selecciona productos y registra la venta</p>
       </div>
       {error && <div className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
       <div className="grid gap-4 lg:grid-cols-3">
@@ -127,7 +156,7 @@ export default function SalesPage() {
                 key={p.id}
                 type="button"
                 onClick={() => addToCart(p)}
-                className="rounded-xl border border-slate-200 bg-white p-3 text-left shadow-sm transition hover:border-indigo-300 hover:shadow"
+                className="cursor-pointer rounded-xl border border-slate-200 bg-white p-3 text-left shadow-sm transition hover:border-indigo-300 hover:shadow"
               >
                 <div className="font-medium text-slate-900">{p.name}</div>
                 <div className="text-xs text-slate-500">Stock: {p.stock}</div>
@@ -167,17 +196,105 @@ export default function SalesPage() {
                 <span>Total</span>
                 <span>${cartTotal.toFixed(2)}</span>
               </div>
-              <button
-                type="button"
-                onClick={checkout}
-                className="w-full rounded-lg bg-emerald-600 py-2.5 font-medium text-white hover:bg-emerald-700"
-              >
-                Registrar venta
-              </button>
+              <div className="space-y-2">
+                <button
+                  type="button"
+                  onClick={openCheckoutConfirm}
+                  className="w-full rounded-lg bg-emerald-600 py-2.5 font-medium text-white hover:bg-emerald-700"
+                >
+                  Registrar venta
+                </button>
+                <button
+                  type="button"
+                  onClick={clearCart}
+                  className="w-full rounded-lg border border-slate-300 py-2.5 font-medium text-slate-700 hover:bg-slate-50"
+                >
+                  Limpiar carrito
+                </button>
+              </div>
             </>
           )}
         </div>
       </div>
+      {showConfirmModal && (
+        <Modal title="Confirmar venta" onClose={() => setShowConfirmModal(false)} wide>
+          <div className="space-y-4">
+            <div>
+              <p className="text-sm text-slate-500">Seleccione el tipo de venta antes de registrar.</p>
+              <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                {PAYMENT_METHODS.map((method) => (
+                  <label
+                    key={method.value}
+                    className={`cursor-pointer rounded-xl border px-4 py-3 text-center text-sm font-semibold transition ${
+                      paymentMethod === method.value
+                        ? 'border-[#0b2545] bg-blue-50 text-[#0b2545]'
+                        : 'border-slate-200 text-slate-600 hover:border-slate-300'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="payment_method"
+                      value={method.value}
+                      checked={paymentMethod === method.value}
+                      onChange={(e) => setPaymentMethod(e.target.value)}
+                      className="sr-only"
+                    />
+                    {method.label}
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-[#0b2545] text-left text-xs uppercase text-white">
+                  <tr>
+                    <th className="px-3 py-2">Producto</th>
+                    <th className="px-3 py-2">Cant.</th>
+                    <th className="px-3 py-2">Precio</th>
+                    <th className="px-3 py-2">Subtotal</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {cart.map((item) => {
+                    const price = Number(item.price_sale ?? item.price);
+                    return (
+                      <tr key={item.id} className="border-b border-slate-100">
+                        <td className="px-3 py-2 text-slate-700">{item.name}</td>
+                        <td className="px-3 py-2 text-slate-700">{item.qty}</td>
+                        <td className="px-3 py-2 text-slate-700">${price.toFixed(2)}</td>
+                        <td className="px-3 py-2 font-semibold text-slate-800">
+                          ${(price * item.qty).toFixed(2)}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            <p className="text-right text-xl font-bold text-slate-800">Total: ${cartTotal.toFixed(2)}</p>
+
+            <div className="flex flex-wrap justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setShowConfirmModal(false)}
+                className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+              >
+                Volver
+              </button>
+              <button
+                type="button"
+                onClick={checkout}
+                disabled={saving}
+                className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-60"
+              >
+                {saving ? 'Registrando…' : 'Aceptar registro'}
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }

@@ -37,7 +37,7 @@ class ProductService
     }
 
 
-    public function update(int $id, ?string $name, ?float $price, ?int $stock, ?int $barcode): bool
+    public function update(int $id, ?string $name, ?float $price, ?int $stock, ?string $barcode): bool
     {
         return $this->productRepository->update($id, $name, $price, $stock, $barcode);
     }
@@ -55,15 +55,22 @@ class ProductService
     public function importFromExcel(array $rows): array
     {
         $imported = 0;
+        $created = 0;
+        $updated = 0;
+        $unchanged = 0;
         $failed = [];
 
         foreach ($rows as $index => $row) {
+            $name = trim((string)($row['nombre_producto'] ?? ''));
+            $barcode = $this->nullableString($row['barcode'] ?? null);
+            $brand = $this->nullableString($row['marca'] ?? null);
 
             // Validaciones de negocio (Excel estricto)
             if (
-                empty($row['nombre_producto']) ||
+                $name === '' ||
                 !isset($row['precio_compra']) ||
-                !isset($row['precio_venta'])
+                !isset($row['precio_venta']) ||
+                !isset($row['stock'])
             ) {
                 $failed[] = [
                     'row' => $index + 2,
@@ -72,41 +79,111 @@ class ProductService
                 continue;
             }
 
-            if (!is_numeric($row['precio_compra']) || !is_numeric($row['precio_venta'])) {
+            if (!is_numeric($row['precio_compra']) || !is_numeric($row['precio_venta']) || !is_numeric($row['stock'])) {
                 $failed[] = [
                     'row' => $index + 2,
-                    'error' => 'Precios inválidos'
+                    'error' => 'Precios o stock inválidos'
                 ];
                 continue;
             }
 
-            // Validar barcode duplicado
-            if (!empty($row['barcode']) && $this->productRepository->barcodeExists($row['barcode'])) {
+            $stock = (int)$row['stock'];
+
+            if ($stock < 0) {
                 $failed[] = [
                     'row' => $index + 2,
-                    'barcode' => $row['barcode'],
-                    'error' => 'Barcode duplicado'
+                    'error' => 'Stock inválido'
                 ];
                 continue;
             }
 
             // Mapping Excel → BD
-            $this->productRepository->bulkInsert([
-                'name'       => $row['nombre_producto'],
+            $productData = [
+                'name'       => $name,
                 'price'      => (float)$row['precio_compra'],
                 'price_sale' => (float)$row['precio_venta'],
-                'stock'      => 0,
-                'barcode'    => $row['barcode'] ?? null,
-                'brand'      => $row['marca'] ?? null
-            ]);
+                'stock'      => $stock,
+                'barcode'    => $barcode,
+                'brand'      => $brand
+            ];
+
+            $existingProduct = $this->findExistingProduct($name, $barcode);
+
+            if ($existingProduct) {
+                $changes = $this->getChangedImportFields($existingProduct, $productData);
+
+                if (empty($changes)) {
+                    $unchanged++;
+                } else {
+                    $this->productRepository->updateImportFields((int)$existingProduct['id'], $changes);
+                    $updated++;
+                }
+            } else {
+                $this->productRepository->bulkInsert($productData);
+                $created++;
+            }
 
             $imported++;
         }
 
         return [
             'imported' => $imported,
+            'created' => $created,
+            'updated' => $updated,
+            'unchanged' => $unchanged,
             'failed'   => $failed
         ];
+    }
+
+    private function findExistingProduct(string $name, ?string $barcode): ?array
+    {
+        if ($barcode !== null) {
+            $product = $this->productRepository->findByBarcode($barcode);
+
+            if ($product) {
+                return $product;
+            }
+        }
+
+        return $this->productRepository->findByName($name);
+    }
+
+    private function getChangedImportFields(array $existingProduct, array $newData): array
+    {
+        $changes = [];
+
+        foreach ($newData as $field => $newValue) {
+            $currentValue = $existingProduct[$field] ?? null;
+
+            if ($field === 'price' || $field === 'price_sale') {
+                if ((float)$currentValue !== (float)$newValue) {
+                    $changes[$field] = $newValue;
+                }
+
+                continue;
+            }
+
+            if ($field === 'stock') {
+                if ((int)$currentValue !== (int)$newValue) {
+                    $changes[$field] = $newValue;
+                }
+
+                continue;
+            }
+
+            if ($this->nullableString($currentValue) !== $this->nullableString($newValue)) {
+                $changes[$field] = $newValue;
+            }
+        }
+
+        return $changes;
+    }
+
+    private function nullableString(mixed $value): ?string
+    {
+        $normalized = trim((string)($value ?? ''));
+
+        return $normalized === '' ? null : $normalized;
     }
 
 

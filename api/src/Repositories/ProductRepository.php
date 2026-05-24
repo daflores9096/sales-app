@@ -27,6 +27,22 @@ class ProductRepository
         return $product ?: null;
     }
 
+    public function findByBarcode(string $barcode): ?array
+    {
+        $stmt = $this->db->prepare("SELECT * FROM products WHERE barcode = :barcode LIMIT 1");
+        $stmt->execute(['barcode' => $barcode]);
+        $product = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $product ?: null;
+    }
+
+    public function findByName(string $name): ?array
+    {
+        $stmt = $this->db->prepare("SELECT * FROM products WHERE name = :name LIMIT 1");
+        $stmt->execute(['name' => $name]);
+        $product = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $product ?: null;
+    }
+
     public function create(array $data): array
     {
         $stmt = $this->db->prepare("
@@ -47,7 +63,7 @@ class ProductRepository
         ];
     }
 
-    public function update(int $id, ?string $name, ?float $price, ?int $stock, ?int $barcode): bool
+    public function update(int $id, ?string $name, ?float $price, ?int $stock, ?string $barcode): bool
     {
         $fields = [];
         $params = ['id' => $id];
@@ -125,5 +141,29 @@ class ProductRepository
             'barcode'    => $data['barcode'],
             'brand'      => $data['brand']
         ]);
+    }
+
+    public function updateImportFields(int $id, array $data): bool
+    {
+        $allowedFields = ['name', 'price', 'price_sale', 'stock', 'barcode', 'brand'];
+        $fields = [];
+        $params = ['id' => $id];
+
+        foreach ($allowedFields as $field) {
+            if (array_key_exists($field, $data)) {
+                $fields[] = "{$field} = :{$field}";
+                $params[$field] = $data[$field];
+            }
+        }
+
+        if (empty($fields)) {
+            return false;
+        }
+
+        $sql = "UPDATE products SET " . implode(', ', $fields) . " WHERE id = :id";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute($params);
+
+        return $stmt->rowCount() > 0;
     }
 }

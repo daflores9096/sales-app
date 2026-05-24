@@ -57,8 +57,6 @@ export function RequireRole({ roles, children }) {
 }
 
 export function HomeRedirect() {
-  const { role } = useAuth();
-  if (role === 'user') return <Navigate to="/sales" replace />;
   return <Navigate to="/dashboard" replace />;
 }
 

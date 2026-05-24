@@ -1,5 +1,5 @@
 export const navItems = [
-  { id: 'dashboard', title: 'Dashboard', url: '/dashboard', roles: ['admin', 'superadmin'] },
+  { id: 'dashboard', title: 'Dashboard', url: '/dashboard', roles: ['admin', 'superadmin', 'user'] },
   { id: 'products', title: 'Productos', url: '/products', roles: ['admin', 'superadmin'] },
   { id: 'import', title: 'Importar productos', url: '/products/import', roles: ['admin', 'superadmin'] },
   { id: 'pos', title: 'Ventas (TPV)', url: '/sales' },

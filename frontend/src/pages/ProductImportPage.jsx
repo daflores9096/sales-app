@@ -2,7 +2,7 @@ import { useState } from 'react';
 import * as XLSX from 'xlsx';
 import { importProducts } from '../api.js';
 
-const REQUIRED_COLUMNS = ['nombre_producto', 'barcode', 'marca', 'precio_compra', 'precio_venta'];
+const REQUIRED_COLUMNS = ['nombre_producto', 'barcode', 'marca', 'precio_compra', 'precio_venta', 'stock'];
 
 export default function ProductImportPage() {
   const [loading, setLoading] = useState(false);
@@ -45,7 +45,10 @@ export default function ProductImportPage() {
     try {
       const res = await importProducts(preview);
       const result = res.data;
-      let message = `Productos importados: ${result.imported}`;
+      let message = `Productos procesados: ${result.imported}`;
+      message += `\nCreados: ${result.created ?? 0}`;
+      message += `\nActualizados: ${result.updated ?? 0}`;
+      message += `\nSin cambios: ${result.unchanged ?? 0}`;
       if (result.failed?.length) {
         message += `\n\nFallidos:\n${result.failed.map((f) => `Fila ${f.row}: ${f.error}`).join('\n')}`;
       }
@@ -61,8 +64,8 @@ export default function ProductImportPage() {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-2xl font-bold text-slate-900">Importar productos</h1>
-        <p className="text-sm text-slate-500">
+        <h1 className="text-2xl font-bold text-white">Importar productos</h1>
+        <p className="text-sm text-white/75">
           Columnas requeridas: {REQUIRED_COLUMNS.join(', ')}
         </p>
       </div>

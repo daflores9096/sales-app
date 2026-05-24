@@ -1,9 +1,134 @@
 @import 'tailwindcss';
 
+:root {
+  --argon-primary: #0f3a68;
+  --argon-info: #1d4ed8;
+  --argon-success: #2dce89;
+  --argon-danger: #f5365c;
+  --argon-warning: #fb6340;
+  --argon-dark: #172b4d;
+  --argon-text: #344767;
+  --argon-muted: #67748e;
+  --argon-page: #f4f7fb;
+  --argon-shadow: 0 0 2rem 0 rgb(136 152 170 / 15%);
+  --argon-shadow-hover: 0 1rem 3rem rgb(15 58 104 / 22%);
+}
+
 body {
   margin: 0;
   min-height: 100vh;
-  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-  background: #f1f5f9;
-  color: #0f172a;
+  font-family: Inter, Roboto, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  background:
+    linear-gradient(150deg, rgb(15 58 104 / 18%) 0, rgb(29 78 216 / 10%) 38%, transparent 38%),
+    var(--argon-page);
+  color: var(--argon-text);
+}
+
+button,
+a,
+input,
+select {
+  transition:
+    color 160ms ease,
+    background 160ms ease,
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
+}
+
+main .bg-white,
+.material-surface {
+  border: 0 !important;
+  border-radius: 1.25rem !important;
+  box-shadow: var(--argon-shadow);
+}
+
+main table thead,
+.material-table-head {
+  background: linear-gradient(87deg, #0b2545, var(--argon-primary)) !important;
+  color: #fff !important;
+}
+
+main table thead th {
+  color: #fff !important;
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+main table tbody tr {
+  border-color: #edf2f7 !important;
+}
+
+main table tbody tr:hover {
+  background: #f6f9fc;
+}
+
+main input,
+main select {
+  border-color: #dee2e6 !important;
+  background: #fff;
+  color: var(--argon-text);
+}
+
+main input:focus,
+main select:focus {
+  border-color: var(--argon-primary) !important;
+  box-shadow: 0 0 0 2px rgb(15 58 104 / 16%);
+  outline: none;
+}
+
+.bg-indigo-600,
+.bg-emerald-600 {
+  background: linear-gradient(87deg, #0b2545, var(--argon-primary)) !important;
+  box-shadow: 0 4px 6px rgb(50 50 93 / 11%), 0 1px 3px rgb(0 0 0 / 8%);
+}
+
+.bg-indigo-600:hover,
+.bg-emerald-600:hover {
+  background: linear-gradient(87deg, #071a33, #0f3a68) !important;
+  box-shadow: var(--argon-shadow-hover);
+  transform: translateY(-1px);
+}
+
+.text-indigo-600,
+.text-indigo-700 {
+  color: var(--argon-primary) !important;
+}
+
+.text-emerald-700,
+.text-emerald-600 {
+  color: var(--argon-success) !important;
+}
+
+.text-red-600,
+.text-red-700 {
+  color: var(--argon-danger) !important;
+}
+
+.rounded-xl {
+  border-radius: 1rem !important;
+}
+
+.shadow-sm {
+  box-shadow: var(--argon-shadow) !important;
+}
+
+.material-gradient-card {
+  position: relative;
+  overflow: hidden;
+  border-radius: 1rem;
+  background: linear-gradient(87deg, #0b2545, var(--argon-primary));
+  color: #fff;
+  box-shadow: 0 4px 20px 0 rgb(15 58 104 / 28%), 0 7px 10px -5px rgb(15 58 104 / 35%);
+}
+
+.material-gradient-card::after {
+  content: '';
+  position: absolute;
+  inset: auto -2rem -4rem auto;
+  width: 10rem;
+  height: 10rem;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 16%);
 }

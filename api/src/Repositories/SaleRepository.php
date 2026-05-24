@@ -17,15 +17,16 @@ class SaleRepository
        CREAR VENTA
     ======================= */
 
-    public function createSale(int $userId, float $total): int
+    public function createSale(int $userId, float $total, string $paymentMethod): int
     {
         $stmt = $this->db->prepare("
-            INSERT INTO sales (user_id, total, status)
-            VALUES (:user_id, :total, 'active')
+            INSERT INTO sales (user_id, total, status, payment_method)
+            VALUES (:user_id, :total, 'active', :payment_method)
         ");
         $stmt->execute([
             'user_id' => $userId,
-            'total' => $total
+            'total' => $total,
+            'payment_method' => $paymentMethod
         ]);
 
         return (int)$this->db->lastInsertId();
@@ -60,6 +61,7 @@ class SaleRepository
                 s.id,
                 s.total,
                 s.status,
+                s.payment_method,
                 s.created_at,
                 u.username
             FROM sales s
@@ -77,6 +79,7 @@ class SaleRepository
                 id,
                 total,
                 status,
+                payment_method,
                 created_at
             FROM sales
             WHERE user_id = :user_id
@@ -94,6 +97,7 @@ class SaleRepository
                 s.id,
                 s.total,
                 s.status,
+                s.payment_method,
                 s.created_at,
                 u.username
             FROM sales s
@@ -226,7 +230,7 @@ class SaleRepository
 
         $sql = "
         SELECT SQL_CALC_FOUND_ROWS
-            s.id, s.total, s.created_at, s.status,
+            s.id, s.total, s.created_at, s.status, s.payment_method,
             u.username
         FROM sales s
         JOIN users u ON u.id = s.user_id

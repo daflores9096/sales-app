@@ -69,6 +69,7 @@ CREATE TABLE sales (
                        total DECIMAL(10,2) NOT NULL DEFAULT 0.00,
                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                        status ENUM('active', 'cancelled') DEFAULT 'active',
+                       payment_method ENUM('cash', 'qr', 'card') NOT NULL DEFAULT 'cash',
                        FOREIGN KEY (user_id) REFERENCES users(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 

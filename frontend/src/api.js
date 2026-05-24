@@ -141,14 +141,18 @@ export function cancelSale(id) {
   return api(`/api/sales/${id}/cancel`, { method: 'POST', body: {} });
 }
 
-export function getReportTotals() {
-  return api('/api/reports/total');
+export function getReportTotals(params) {
+  return api('/api/reports/total', { params });
 }
 
-export function getReportDaily() {
-  return api('/api/reports/daily');
+export function getReportDaily(params) {
+  return api('/api/reports/daily', { params });
 }
 
-export function getReportByProduct() {
-  return api('/api/reports/products');
+export function getReportByProduct(params) {
+  return api('/api/reports/products', { params });
+}
+
+export function getReportByPaymentMethod(params) {
+  return api('/api/reports/payment-methods', { params });
 }

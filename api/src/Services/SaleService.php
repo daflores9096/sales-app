@@ -23,7 +23,7 @@ class SaleService
     /**
      * Crea una venta con varios productos.
      */
-    public function createSale(int $userId, array $items): int
+    public function createSale(int $userId, array $items, string $paymentMethod = 'cash'): int
     {
         try {
             $this->db->beginTransaction();
@@ -39,7 +39,7 @@ class SaleService
 
                 // 🔒 Bloquear producto
                 $stmt = $this->db->prepare("
-                SELECT id, name, price, stock
+                SELECT id, name, price_sale, stock
                 FROM products
                 WHERE id = :id
                 FOR UPDATE
@@ -55,19 +55,19 @@ class SaleService
                     throw new Exception("Stock insuficiente para {$product['name']}");
                 }
 
-                $total += $product['price'] * $item['quantity'];
+                $total += $product['price_sale'] * $item['quantity'];
 
                 // Guardamos en cache para no volver a consultar
                 $productsCache[] = [
                     'id' => $product['id'],
-                    'price' => $product['price'],
+                    'price' => $product['price_sale'],
                     'quantity' => $item['quantity'],
                     'new_stock' => $product['stock'] - $item['quantity']
                 ];
             }
 
             // Crear venta
-            $saleId = $this->saleRepository->createSale($userId, $total);
+            $saleId = $this->saleRepository->createSale($userId, $total, $paymentMethod);
 
             // Registrar items y actualizar stock
             foreach ($productsCache as $p) {
