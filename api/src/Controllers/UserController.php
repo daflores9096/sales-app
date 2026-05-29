@@ -34,6 +34,24 @@ class UserController {
         }
     }
 
+    /**
+     * Permisos especificos para cambio manual de contraseña.
+     */
+    private function assertActorCanResetPassword(object $actor, array $target): void {
+        $actorRoleId = (int)$actor->role_id;
+        $targetRoleId = (int)$target['role_id'];
+
+        if ($actorRoleId === 1) {
+            return;
+        }
+
+        if ($actorRoleId === 2 && $targetRoleId !== 1) {
+            return;
+        }
+
+        Response::error('No tienes permiso para cambiar esta contraseña', 403);
+    }
+
     public function list() {
         AuthMiddleware::requireRole(['admin', 'superadmin']);
         $data = $this->repo->listAll();
@@ -173,7 +191,7 @@ class UserController {
             Response::error('Usuario no encontrado', 404);
         }
 
-        $this->assertActorCanManageTarget($actor, $target);
+        $this->assertActorCanResetPassword($actor, $target);
 
         $input = json_decode(file_get_contents('php://input'), true) ?: [];
         $password = (string)($input['password'] ?? '');

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
+import { Eye, EyeOff } from 'lucide-react';
 import { login as apiLogin } from '../api.js';
 import { useAuth } from '../auth.jsx';
 
@@ -8,6 +9,7 @@ export default function LoginPage() {
   const navigate = useNavigate();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -66,14 +68,24 @@ export default function LoginPage() {
         <label className="mb-2 block text-sm font-medium text-slate-700" htmlFor="pass">
           Contraseña
         </label>
-        <input
-          id="pass"
-          type="password"
-          className="mb-6 w-full rounded-xl border border-slate-300 px-3 py-2.5"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          autoComplete="current-password"
-        />
+        <div className="relative mb-6">
+          <input
+            id="pass"
+            type={showPassword ? 'text' : 'password'}
+            className="w-full rounded-xl border border-slate-300 px-3 py-2.5 pr-11"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            autoComplete="current-password"
+          />
+          <button
+            type="button"
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-700"
+            onClick={() => setShowPassword((value) => !value)}
+            aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+          >
+            {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+          </button>
+        </div>
         <button
           type="submit"
           disabled={loading}

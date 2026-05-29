@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ChevronLeft, ChevronRight, KeyRound, Pencil, Search, Trash2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Eye, EyeOff, KeyRound, Pencil, Search, Trash2 } from 'lucide-react';
 import Modal from '../components/Modal.jsx';
 import { createUser, deleteUser, getUsers, resetUserPassword, updateUser } from '../api.js';
 import { useAuth } from '../auth.jsx';
@@ -39,6 +39,13 @@ export default function UsersPage() {
       if (row.role === 'superadmin' && row.id !== currentUserId) return false;
       return true;
     }
+    return false;
+  }
+
+  function canResetPasswordRow(row) {
+    if (!me) return false;
+    if (me.role === 'superadmin') return true;
+    if (me.role === 'admin') return row.role !== 'superadmin';
     return false;
   }
 
@@ -146,17 +153,19 @@ export default function UsersPage() {
                               >
                                 <Pencil size={16} />
                               </IconButton>
-                              <IconButton
-                                label="Resetear clave"
-                                warning
-                                onClick={() => {
-                                  setResetForm({ userId: u.id, username: u.username, password: '', password2: '' });
-                                  setModal('reset');
-                                  setError('');
-                                }}
-                              >
-                                <KeyRound size={16} />
-                              </IconButton>
+                              {canResetPasswordRow(u) && (
+                                <IconButton
+                                  label="Cambiar contraseña"
+                                  warning
+                                  onClick={() => {
+                                    setResetForm({ userId: u.id, username: u.username, password: '', password2: '' });
+                                    setModal('reset');
+                                    setError('');
+                                  }}
+                                >
+                                  <KeyRound size={16} />
+                                </IconButton>
+                              )}
                               {u.id !== currentUserId && (
                                 <IconButton
                                   label="Eliminar"
@@ -170,6 +179,18 @@ export default function UsersPage() {
                                 </IconButton>
                               )}
                             </>
+                          ) : canResetPasswordRow(u) ? (
+                            <IconButton
+                              label="Cambiar contraseña"
+                              warning
+                              onClick={() => {
+                                setResetForm({ userId: u.id, username: u.username, password: '', password2: '' });
+                                setModal('reset');
+                                setError('');
+                              }}
+                            >
+                              <KeyRound size={16} />
+                            </IconButton>
                           ) : (
                             <span className="text-slate-400">—</span>
                           )}
@@ -221,9 +242,9 @@ export default function UsersPage() {
         </Modal>
       )}
       {modal === 'reset' && (
-        <Modal title={`Restablecer: ${resetForm.username}`} onClose={() => setModal(null)}>
-          <Field label="Nueva contraseña" type="password" value={resetForm.password} onChange={(v) => setResetForm((f) => ({ ...f, password: v }))} />
-          <Field label="Confirmar" type="password" value={resetForm.password2} onChange={(v) => setResetForm((f) => ({ ...f, password2: v }))} />
+        <Modal title={`Cambiar contraseña: ${resetForm.username}`} onClose={() => setModal(null)}>
+          <PasswordField label="Nueva contraseña" value={resetForm.password} onChange={(v) => setResetForm((f) => ({ ...f, password: v }))} />
+          <PasswordField label="Confirmar contraseña" value={resetForm.password2} onChange={(v) => setResetForm((f) => ({ ...f, password2: v }))} />
           <FormActions
             onCancel={() => setModal(null)}
             onSave={async () => {
@@ -357,6 +378,32 @@ function Field({ label, value, onChange, type = 'text' }) {
     <div>
       <label className="mb-1 block text-sm font-medium">{label}</label>
       <input className="w-full rounded-lg border border-slate-300 px-3 py-2" type={type} value={value} onChange={(e) => onChange(e.target.value)} />
+    </div>
+  );
+}
+
+function PasswordField({ label, value, onChange }) {
+  const [visible, setVisible] = useState(false);
+
+  return (
+    <div>
+      <label className="mb-1 block text-sm font-medium">{label}</label>
+      <div className="relative">
+        <input
+          className="w-full rounded-lg border border-slate-300 px-3 py-2 pr-10"
+          type={visible ? 'text' : 'password'}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+        />
+        <button
+          type="button"
+          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-700"
+          onClick={() => setVisible((value) => !value)}
+          aria-label={visible ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+        >
+          {visible ? <EyeOff size={18} /> : <Eye size={18} />}
+        </button>
+      </div>
     </div>
   );
 }
