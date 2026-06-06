@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { BarChart3, Boxes, FileUp, History, LogOut, Menu, Receipt, ShoppingCart, Users, X } from 'lucide-react';
+import { BarChart3, Boxes, Database, FileUp, History, LogOut, Menu, Receipt, ShoppingCart, Users, X } from 'lucide-react';
 import { useAuth } from '../auth.jsx';
 import { getNavForRole } from '../navigation.js';
 
@@ -19,6 +19,7 @@ export default function AppLayout() {
     'my-sales': Receipt,
     'sales-history': History,
     users: Users,
+    backups: Database,
   };
 
   function handleLogout() {

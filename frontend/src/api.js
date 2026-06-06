@@ -19,6 +19,16 @@ export function clearSession() {
   localStorage.removeItem(USER_KEY);
 }
 
+function redirectToLogin() {
+  if (typeof window === 'undefined') return;
+
+  clearSession();
+
+  if (window.location.pathname !== '/login') {
+    window.location.replace('/login');
+  }
+}
+
 export function getStoredUser() {
   try {
     const raw = localStorage.getItem(USER_KEY);
@@ -73,6 +83,10 @@ export async function api(path, options = {}) {
 
   if (!res.ok) {
     const msg = data?.message || data?.error || `HTTP ${res.status}`;
+    if (res.status === 401 && path !== '/api/auth/login') {
+      redirectToLogin();
+    }
+
     const err = new Error(msg);
     err.status = res.status;
     err.data = data;
@@ -155,4 +169,12 @@ export function getReportByProduct(params) {
 
 export function getReportByPaymentMethod(params) {
   return api('/api/reports/payment-methods', { params });
+}
+
+export function createDatabaseBackup() {
+  return api('/api/backups');
+}
+
+export function restoreDatabaseBackup(backup) {
+  return api('/api/backups/restore', { method: 'POST', body: { backup } });
 }

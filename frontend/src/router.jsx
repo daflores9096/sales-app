@@ -8,6 +8,7 @@ import ProductImportPage from './pages/ProductImportPage.jsx';
 import SalesPage from './pages/SalesPage.jsx';
 import SalesHistoryPage from './pages/SalesHistoryPage.jsx';
 import UsersPage from './pages/UsersPage.jsx';
+import BackupsPage from './pages/BackupsPage.jsx';
 
 export const router = createBrowserRouter([
   { path: '/login', element: <LoginPage /> },
@@ -52,6 +53,14 @@ export const router = createBrowserRouter([
         element: (
           <RequireRole roles={['admin', 'superadmin']}>
             <UsersPage />
+          </RequireRole>
+        ),
+      },
+      {
+        path: 'backups',
+        element: (
+          <RequireRole roles={['superadmin']}>
+            <BackupsPage />
           </RequireRole>
         ),
       },

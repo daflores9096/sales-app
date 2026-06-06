@@ -6,6 +6,7 @@ export const navItems = [
   { id: 'my-sales', title: 'Mis ventas', url: '/mis-ventas', roles: ['user'] },
   { id: 'sales-history', title: 'Histórico de ventas', url: '/sales-history', roles: ['admin', 'superadmin'] },
   { id: 'users', title: 'Usuarios', url: '/users', roles: ['admin', 'superadmin'] },
+  { id: 'backups', title: 'Respaldos', url: '/backups', roles: ['superadmin'] },
 ];
 
 export function getNavForRole(roleName) {

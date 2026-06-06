@@ -95,14 +95,16 @@ class ProductController
         $input = json_decode(file_get_contents('php://input'), true);
         $name = $input['name'] ?? null;
         $price = $input['price'] ?? null;
+        $priceSale = $input['price_sale'] ?? null;
         $stock = $input['stock'] ?? null;
         $barcode = $input['barcode'] ?? null;
+        $brand = $input['brand'] ?? null;
 
         try {
-            $updated = $this->productService->update($id, $name, $price, $stock, $barcode);
+            $updated = $this->productService->update($id, $name, $price, $priceSale, $stock, $barcode, $brand);
 
             if (!$updated) {
-                Response::error('Producto no encontrado o sin cambios', 404);
+                Response::error('Producto no encontrado', 404);
                 return;
             }
 

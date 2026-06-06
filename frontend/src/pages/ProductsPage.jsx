@@ -6,6 +6,17 @@ import { createProduct, deleteProduct, getProducts, updateProduct } from '../api
 
 const emptyForm = { id: null, name: '', price: '', price_sale: '', stock: '', barcode: '', brand: '' };
 
+function parseFormNumber(value, { integer = false, defaultValue = null } = {}) {
+  const normalized = String(value ?? '').trim().replace(',', '.');
+
+  if (normalized === '') return defaultValue;
+
+  const parsed = Number(normalized);
+  if (!Number.isFinite(parsed)) return null;
+
+  return integer ? Math.trunc(parsed) : parsed;
+}
+
 export default function ProductsPage() {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -75,11 +86,20 @@ export default function ProductsPage() {
   async function save(e) {
     e.preventDefault();
     setError('');
+    const price = parseFormNumber(form.price);
+    const priceSale = form.price_sale === '' ? price : parseFormNumber(form.price_sale);
+    const stock = parseFormNumber(form.stock, { integer: true, defaultValue: 0 });
+
+    if (price === null || priceSale === null || stock === null) {
+      setError('Revisa el precio de compra, precio de venta y stock. Deben ser valores numéricos.');
+      return;
+    }
+
     const payload = {
       name: form.name,
-      price: form.price === '' ? null : Number(form.price),
-      price_sale: form.price_sale === '' ? Number(form.price) : Number(form.price_sale),
-      stock: form.stock === '' ? 0 : Number(form.stock),
+      price,
+      price_sale: priceSale,
+      stock,
       barcode: form.barcode === '' ? null : String(form.barcode),
       brand: form.brand === '' ? null : String(form.brand),
     };
@@ -201,9 +221,9 @@ export default function ProductsPage() {
         <Modal title={editMode ? 'Editar producto' : 'Nuevo producto'} onClose={() => setShowForm(false)}>
           <form onSubmit={save} className="space-y-3">
             <Field label="Nombre" value={form.name} onChange={(v) => setForm((f) => ({ ...f, name: v }))} required />
-            <Field label="Precio compra" value={form.price} onChange={(v) => setForm((f) => ({ ...f, price: v }))} type="number" />
-            <Field label="Precio venta" value={form.price_sale} onChange={(v) => setForm((f) => ({ ...f, price_sale: v }))} type="number" />
-            <Field label="Stock" value={form.stock} onChange={(v) => setForm((f) => ({ ...f, stock: v }))} type="number" />
+            <Field label="Precio compra" value={form.price} onChange={(v) => setForm((f) => ({ ...f, price: v }))} inputMode="decimal" />
+            <Field label="Precio venta" value={form.price_sale} onChange={(v) => setForm((f) => ({ ...f, price_sale: v }))} inputMode="decimal" />
+            <Field label="Stock" value={form.stock} onChange={(v) => setForm((f) => ({ ...f, stock: v }))} type="number" min="0" step="1" />
             <Field label="Código barras" value={form.barcode} onChange={(v) => setForm((f) => ({ ...f, barcode: v }))} />
             <Field label="Marca" value={form.brand} onChange={(v) => setForm((f) => ({ ...f, brand: v }))} />
             <div className="flex justify-end gap-2 pt-2">
@@ -313,7 +333,7 @@ function IconButton({ label, children, onClick, danger }) {
   );
 }
 
-function Field({ label, value, onChange, type = 'text', required }) {
+function Field({ label, value, onChange, type = 'text', required, inputMode, min, step }) {
   return (
     <div>
       <label className="mb-1 block text-sm font-medium text-slate-700">{label}</label>
@@ -321,6 +341,9 @@ function Field({ label, value, onChange, type = 'text', required }) {
         className="w-full rounded-lg border border-slate-300 px-3 py-2"
         type={type}
         value={value}
+        inputMode={inputMode}
+        min={min}
+        step={step}
         onChange={(e) => onChange(e.target.value)}
         required={required}
       />

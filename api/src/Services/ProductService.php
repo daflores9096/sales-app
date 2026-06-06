@@ -37,9 +37,17 @@ class ProductService
     }
 
 
-    public function update(int $id, ?string $name, ?float $price, ?int $stock, ?string $barcode): bool
+    public function update(
+        int $id,
+        ?string $name,
+        ?float $price,
+        ?float $priceSale,
+        ?int $stock,
+        ?string $barcode,
+        ?string $brand
+    ): bool
     {
-        return $this->productRepository->update($id, $name, $price, $stock, $barcode);
+        return $this->productRepository->update($id, $name, $price, $priceSale, $stock, $barcode, $brand);
     }
 
     public function delete(int $id): bool

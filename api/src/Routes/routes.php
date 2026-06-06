@@ -9,3 +9,4 @@ require_once __DIR__ . '/users.php';
 require_once __DIR__ . '/products.php';
 require_once __DIR__ . '/sales.php';
 require_once __DIR__ . '/reports.php';
+require_once __DIR__ . '/backups.php';

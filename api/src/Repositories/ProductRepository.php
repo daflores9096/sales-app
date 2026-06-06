@@ -63,23 +63,37 @@ class ProductRepository
         ];
     }
 
-    public function update(int $id, ?string $name, ?float $price, ?int $stock, ?string $barcode): bool
+    public function update(
+        int $id,
+        ?string $name,
+        ?float $price,
+        ?float $priceSale,
+        ?int $stock,
+        ?string $barcode,
+        ?string $brand
+    ): bool
     {
+        if (!$this->findById($id)) {
+            return false;
+        }
+
         $fields = [];
         $params = ['id' => $id];
 
         if ($name !== null) { $fields[] = "name = :name"; $params['name'] = $name; }
         if ($price !== null) { $fields[] = "price = :price"; $params['price'] = $price; }
+        if ($priceSale !== null) { $fields[] = "price_sale = :price_sale"; $params['price_sale'] = $priceSale; }
         if ($stock !== null) { $fields[] = "stock = :stock"; $params['stock'] = $stock; }
-        if ($barcode !== null) { $fields[] = "barcode = :barcode"; $params['barcode'] = $barcode; }
+        $fields[] = "barcode = :barcode"; $params['barcode'] = $barcode;
+        $fields[] = "brand = :brand"; $params['brand'] = $brand;
 
-        if (empty($fields)) return false;
+        if (empty($fields)) return true;
 
         $sql = "UPDATE products SET " . implode(', ', $fields) . " WHERE id = :id";
         $stmt = $this->db->prepare($sql);
         $stmt->execute($params);
 
-        return $stmt->rowCount() > 0;
+        return true;
     }
 
     public function updateStock(int $id, int $newStock): bool
