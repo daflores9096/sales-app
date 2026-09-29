@@ -48,7 +48,9 @@ CREATE TABLE products (
                           stock INT DEFAULT 0,
                           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                           barcode VARCHAR(100) NULL,
-                          brand VARCHAR(100) NULL
+                          brand VARCHAR(100) NULL,
+                          is_combo TINYINT(1) NOT NULL DEFAULT 0,
+                          active TINYINT(1) NOT NULL DEFAULT 1
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- Productos iniciales (demo)
@@ -88,9 +90,44 @@ CREATE TABLE sale_items (
                             FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- =====================================
+-- Tabla: combos
+-- =====================================
+DROP TABLE IF EXISTS combo_items;
+DROP TABLE IF EXISTS combos;
+
+CREATE TABLE combos (
+                        id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                        name VARCHAR(100) NOT NULL,
+                        code VARCHAR(6) NOT NULL,
+                        price DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+                        extra_cost DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+                        status ENUM('active', 'disabled') NOT NULL DEFAULT 'active',
+                        product_id INT UNSIGNED NULL,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        UNIQUE KEY uk_combos_code (code),
+                        FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- =====================================
+-- Tabla: combo_items
+-- =====================================
+CREATE TABLE combo_items (
+                             id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                             combo_id INT UNSIGNED NOT NULL,
+                             product_id INT UNSIGNED NOT NULL,
+                             quantity INT NOT NULL DEFAULT 1,
+                             unit_price DECIMAL(10,2) NOT NULL,
+                             FOREIGN KEY (combo_id) REFERENCES combos(id) ON DELETE CASCADE,
+                             FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE RESTRICT,
+                             UNIQUE KEY uk_combo_product (combo_id, product_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 -- Estos son 2 campos que se añadieron posteriormente (si no estan fallan las Ventas)
 -- ALTER TABLE products ADD COLUMN barcode VARCHAR(100) NULL;
 -- ALTER TABLE sales ADD COLUMN status ENUM('active', 'cancelled') DEFAULT 'active';
+-- ALTER TABLE products ADD COLUMN is_combo TINYINT(1) NOT NULL DEFAULT 0;
+-- ALTER TABLE products ADD COLUMN active TINYINT(1) NOT NULL DEFAULT 1;
 
 -- correr el siguiente comando para crear superadmin:StrongP@ssw0rd
 -- docker exec -it php_app php scripts/create_admin.php

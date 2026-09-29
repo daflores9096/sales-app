@@ -135,6 +135,30 @@ export function deleteProduct(id) {
   return api(`/api/products/${id}`, { method: 'DELETE' });
 }
 
+export function getCombos() {
+  return api('/api/combos');
+}
+
+export function getCombo(id) {
+  return api(`/api/combos/${id}`);
+}
+
+export function createCombo(data) {
+  return api('/api/combos', { method: 'POST', body: data });
+}
+
+export function updateCombo(id, data) {
+  return api(`/api/combos/${id}`, { method: 'PUT', body: data });
+}
+
+export function setComboStatus(id, status) {
+  return api(`/api/combos/${id}/status`, { method: 'PATCH', body: { status } });
+}
+
+export function deleteCombo(id) {
+  return api(`/api/combos/${id}`, { method: 'DELETE' });
+}
+
 export function importProducts(products) {
   return api('/api/products/import', { method: 'POST', body: { products } });
 }

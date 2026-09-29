@@ -107,8 +107,8 @@ Admin:
 Roles:
 
 - `superadmin`: acceso completo.
-- `admin`: gestion operativa, usuarios permitidos, productos, ventas e historico.
-- `user` / Vendedor: ventas, mis ventas y dashboard filtrado a sus propias ventas.
+- `admin`: gestion operativa, usuarios permitidos, productos, combos, ventas e historico.
+- `user` / Vendedor: ventas, combos, mis ventas y dashboard filtrado a sus propias ventas.
 
 ## Base De Datos
 
@@ -126,6 +126,8 @@ Los scripts de inicializacion se ejecutan solo cuando el volumen de MySQL se cre
 - `database/schema.sql`
 - `database/02-superadmin.sql`
 - `database/03-admin.sql`
+
+Para bases existentes, aplica tambien `database/04-combos.sql` (ver seccion de migraciones).
 
 Si modificas estos scripts y necesitas recrear todo desde cero:
 
@@ -300,6 +302,7 @@ El overlay `docker-compose.dev.yml` monta `frontend/dist` directamente en Nginx.
 - Dashboard con filtros por dia, semana, mes y rango.
 - Dashboard con tarjetas de ventas, ingresos, productos vendidos y ventas por tipo de pago.
 - Gestion de productos.
+- Gestion de combos (paquetes de productos) para admin y vendedor, con precio automatico, costo extra de armado y publicacion en el catalogo.
 - Importacion Excel de productos con columna `stock` y actualizacion de productos existentes.
 - TPV para registrar ventas.
 - Confirmacion de venta con metodo de pago: Efectivo, QR o Tarjeta.
@@ -562,6 +565,20 @@ Ejemplo usado para metodos de pago:
 ALTER TABLE sales
 ADD COLUMN payment_method ENUM('cash','qr','card') NOT NULL DEFAULT 'cash' AFTER status;
 ```
+
+Migracion de Combos (instalaciones existentes):
+
+```powershell
+Get-Content database\04-combos.sql | docker compose exec -T db mysql -uapp_user -papp_password app_db
+```
+
+En Linux/macOS:
+
+```bash
+docker compose exec -T db mysql -uapp_user -papp_password app_db < database/04-combos.sql
+```
+
+Ese script agrega `products.is_combo`, `products.active` y crea las tablas `combos` / `combo_items`.
 
 Antes de aplicar cambios de esquema en produccion:
 

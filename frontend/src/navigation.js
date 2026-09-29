@@ -2,6 +2,7 @@ export const navItems = [
   { id: 'dashboard', title: 'Dashboard', url: '/dashboard', roles: ['admin', 'superadmin', 'user'] },
   { id: 'products', title: 'Productos', url: '/products', roles: ['admin', 'superadmin'] },
   { id: 'import', title: 'Importar productos', url: '/products/import', roles: ['admin', 'superadmin'] },
+  { id: 'combos', title: 'Combos', url: '/combos', roles: ['admin', 'superadmin', 'user'] },
   { id: 'pos', title: 'Ventas (TPV)', url: '/sales' },
   { id: 'my-sales', title: 'Mis ventas', url: '/mis-ventas', roles: ['user'] },
   { id: 'sales-history', title: 'Histórico de ventas', url: '/sales-history', roles: ['admin', 'superadmin'] },

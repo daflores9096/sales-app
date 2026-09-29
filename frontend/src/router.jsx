@@ -5,6 +5,7 @@ import LoginPage from './pages/LoginPage.jsx';
 import DashboardPage from './pages/DashboardPage.jsx';
 import ProductsPage from './pages/ProductsPage.jsx';
 import ProductImportPage from './pages/ProductImportPage.jsx';
+import CombosPage from './pages/CombosPage.jsx';
 import SalesPage from './pages/SalesPage.jsx';
 import SalesHistoryPage from './pages/SalesHistoryPage.jsx';
 import UsersPage from './pages/UsersPage.jsx';
@@ -42,6 +43,14 @@ export const router = createBrowserRouter([
         element: (
           <RequireRole roles={['admin', 'superadmin']}>
             <ProductImportPage />
+          </RequireRole>
+        ),
+      },
+      {
+        path: 'combos',
+        element: (
+          <RequireRole roles={['admin', 'superadmin', 'user']}>
+            <CombosPage />
           </RequireRole>
         ),
       },

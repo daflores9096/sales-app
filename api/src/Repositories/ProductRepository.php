@@ -13,9 +13,15 @@ class ProductRepository
         $this->db = Database::getInstance();
     }
 
-    public function findAll(): array
+    public function findAll(bool $onlyActive = true): array
     {
-        $stmt = $this->db->query("SELECT * FROM products ORDER BY id DESC");
+        $sql = "SELECT * FROM products";
+        if ($onlyActive) {
+            $sql .= " WHERE active = 1";
+        }
+        $sql .= " ORDER BY id DESC";
+
+        $stmt = $this->db->query($sql);
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
@@ -45,21 +51,34 @@ class ProductRepository
 
     public function create(array $data): array
     {
-        $stmt = $this->db->prepare("
-        INSERT INTO products (name, price, price_sale, stock, barcode, brand)
-        VALUES (:name, :price, :price_sale, :stock, :barcode, :brand)
-    ");
-
-        $stmt->execute($data);
-
-        return [
-            'id' => (int)$this->db->lastInsertId(),
+        $payload = [
             'name' => $data['name'],
             'price' => $data['price'],
             'price_sale' => $data['price_sale'],
-            'stock' => $data['stock'],
-            'barcode' => $data['barcode'],
-            'brand' => $data['brand']
+            'stock' => $data['stock'] ?? 0,
+            'barcode' => $data['barcode'] ?? null,
+            'brand' => $data['brand'] ?? null,
+            'is_combo' => (int)($data['is_combo'] ?? 0),
+            'active' => (int)($data['active'] ?? 1),
+        ];
+
+        $stmt = $this->db->prepare("
+        INSERT INTO products (name, price, price_sale, stock, barcode, brand, is_combo, active)
+        VALUES (:name, :price, :price_sale, :stock, :barcode, :brand, :is_combo, :active)
+    ");
+
+        $stmt->execute($payload);
+
+        return [
+            'id' => (int)$this->db->lastInsertId(),
+            'name' => $payload['name'],
+            'price' => $payload['price'],
+            'price_sale' => $payload['price_sale'],
+            'stock' => $payload['stock'],
+            'barcode' => $payload['barcode'],
+            'brand' => $payload['brand'],
+            'is_combo' => $payload['is_combo'],
+            'active' => $payload['active'],
         ];
     }
 
@@ -70,7 +89,9 @@ class ProductRepository
         ?float $priceSale,
         ?int $stock,
         ?string $barcode,
-        ?string $brand
+        ?string $brand,
+        ?int $isCombo = null,
+        ?int $active = null
     ): bool
     {
         if (!$this->findById($id)) {
@@ -86,6 +107,8 @@ class ProductRepository
         if ($stock !== null) { $fields[] = "stock = :stock"; $params['stock'] = $stock; }
         $fields[] = "barcode = :barcode"; $params['barcode'] = $barcode;
         $fields[] = "brand = :brand"; $params['brand'] = $brand;
+        if ($isCombo !== null) { $fields[] = "is_combo = :is_combo"; $params['is_combo'] = $isCombo; }
+        if ($active !== null) { $fields[] = "active = :active"; $params['active'] = $active; }
 
         if (empty($fields)) return true;
 
@@ -110,15 +133,21 @@ class ProductRepository
         return $stmt->rowCount() > 0;
     }
 
-    public function search(string $query): array
+    public function search(string $query, bool $onlyActive = true): array
     {
-        $stmt = $this->db->prepare("
+        $sql = "
         SELECT *
         FROM products
-        WHERE name LIKE :s1
-        OR (barcode IS NOT NULL AND barcode LIKE :s2)
-        ORDER BY id DESC
-    ");
+        WHERE (name LIKE :s1 OR (barcode IS NOT NULL AND barcode LIKE :s2))
+    ";
+
+        if ($onlyActive) {
+            $sql .= " AND active = 1";
+        }
+
+        $sql .= " ORDER BY id DESC";
+
+        $stmt = $this->db->prepare($sql);
 
         $value = "%$query%";
 
@@ -143,8 +172,8 @@ class ProductRepository
     public function bulkInsert(array $data): void
     {
         $stmt = $this->db->prepare("
-        INSERT INTO products (name, price, price_sale, stock, barcode, brand)
-        VALUES (:name, :price, :price_sale, :stock, :barcode, :brand)
+        INSERT INTO products (name, price, price_sale, stock, barcode, brand, is_combo, active)
+        VALUES (:name, :price, :price_sale, :stock, :barcode, :brand, :is_combo, :active)
     ");
 
         $stmt->execute([
@@ -153,13 +182,15 @@ class ProductRepository
             'price_sale' => $data['price_sale'],
             'stock'      => $data['stock'],
             'barcode'    => $data['barcode'],
-            'brand'      => $data['brand']
+            'brand'      => $data['brand'],
+            'is_combo'   => (int)($data['is_combo'] ?? 0),
+            'active'     => (int)($data['active'] ?? 1),
         ]);
     }
 
     public function updateImportFields(int $id, array $data): bool
     {
-        $allowedFields = ['name', 'price', 'price_sale', 'stock', 'barcode', 'brand'];
+        $allowedFields = ['name', 'price', 'price_sale', 'stock', 'barcode', 'brand', 'is_combo', 'active'];
         $fields = [];
         $params = ['id' => $id];
 

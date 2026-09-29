@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { createSale, getProducts } from '../api.js';
 import Modal from '../components/Modal.jsx';
 
@@ -8,6 +8,13 @@ const PAYMENT_METHODS = [
   { value: 'card', label: 'Tarjeta' },
 ];
 
+function parseMoney(value) {
+  const normalized = String(value ?? '').trim().replace(',', '.');
+  if (normalized === '') return null;
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
 export default function SalesPage() {
   const [products, setProducts] = useState([]);
   const [filtered, setFiltered] = useState([]);
@@ -16,9 +23,11 @@ export default function SalesPage() {
   const [scannerMode, setScannerMode] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState('cash');
+  const [amountReceived, setAmountReceived] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const searchRef = useRef(null);
+  const amountReceivedRef = useRef(null);
 
   useEffect(() => {
     loadProducts();
@@ -85,14 +94,46 @@ export default function SalesPage() {
 
   const cartTotal = cart.reduce((sum, p) => sum + p.qty * Number(p.price_sale ?? p.price), 0);
 
+  const receivedValue = useMemo(() => parseMoney(amountReceived), [amountReceived]);
+  const changeDue = useMemo(() => {
+    if (receivedValue === null) return null;
+    return Math.round((receivedValue - cartTotal) * 100) / 100;
+  }, [receivedValue, cartTotal]);
+
+  const cashPaymentReady =
+    paymentMethod !== 'cash' ||
+    (receivedValue !== null && receivedValue >= cartTotal);
+
   function openCheckoutConfirm() {
     if (!cart.length) return;
     setPaymentMethod('cash');
+    setAmountReceived('');
+    setError('');
     setShowConfirmModal(true);
   }
 
+  useEffect(() => {
+    if (!showConfirmModal || paymentMethod !== 'cash') return;
+    const t = setTimeout(() => amountReceivedRef.current?.focus(), 150);
+    return () => clearTimeout(t);
+  }, [showConfirmModal, paymentMethod]);
+
   async function checkout() {
     if (!cart.length) return;
+
+    if (paymentMethod === 'cash') {
+      if (receivedValue === null) {
+        setError('Ingresa el monto que entregó el cliente');
+        amountReceivedRef.current?.focus();
+        return;
+      }
+      if (receivedValue < cartTotal) {
+        setError('El monto recibido es insuficiente para cubrir el total');
+        amountReceivedRef.current?.focus();
+        return;
+      }
+    }
+
     setSaving(true);
     setError('');
     try {
@@ -106,6 +147,7 @@ export default function SalesPage() {
       });
       setCart([]);
       setSearch('');
+      setAmountReceived('');
       setShowConfirmModal(false);
       await loadProducts();
       searchRef.current?.focus();
@@ -275,6 +317,59 @@ export default function SalesPage() {
 
             <p className="text-right text-xl font-bold text-slate-800">Total: ${cartTotal.toFixed(2)}</p>
 
+            {paymentMethod === 'cash' && (
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <label className="mb-1 block text-sm font-medium text-slate-700">
+                  Monto recibido del cliente
+                </label>
+                <input
+                  ref={amountReceivedRef}
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-lg font-semibold"
+                  type="text"
+                  inputMode="decimal"
+                  placeholder="Ej: 200"
+                  value={amountReceived}
+                  onChange={(e) => {
+                    setAmountReceived(e.target.value);
+                    setError('');
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && cashPaymentReady && !saving) {
+                      e.preventDefault();
+                      checkout();
+                    }
+                  }}
+                />
+                <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-sm">
+                  <span className="text-slate-500">Cambio a devolver</span>
+                  <span
+                    className={`text-xl font-bold ${
+                      changeDue === null
+                        ? 'text-slate-400'
+                        : changeDue < 0
+                          ? 'text-red-600'
+                          : 'text-emerald-700'
+                    }`}
+                  >
+                    {changeDue === null
+                      ? '—'
+                      : changeDue < 0
+                        ? `Faltan $${Math.abs(changeDue).toFixed(2)}`
+                        : `$${changeDue.toFixed(2)}`}
+                  </span>
+                </div>
+                {receivedValue !== null && receivedValue < cartTotal && (
+                  <p className="mt-2 text-xs text-red-600">
+                    El monto recibido debe ser mayor o igual al total de la venta.
+                  </p>
+                )}
+              </div>
+            )}
+
+            {error && showConfirmModal && (
+              <div className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
+            )}
+
             <div className="flex flex-wrap justify-end gap-2">
               <button
                 type="button"
@@ -286,7 +381,7 @@ export default function SalesPage() {
               <button
                 type="button"
                 onClick={checkout}
-                disabled={saving}
+                disabled={saving || !cashPaymentReady}
                 className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-60"
               >
                 {saving ? 'Registrando…' : 'Aceptar registro'}
