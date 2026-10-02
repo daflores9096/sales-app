@@ -61,6 +61,8 @@ class SaleController
                 'from' => $_GET['from'] ?? null,
                 'to' => $_GET['to'] ?? null,
                 'q' => $_GET['q'] ?? null,
+                'payment_method' => $_GET['payment_method'] ?? null,
+                'seller_id' => $_GET['seller_id'] ?? null,
                 'user_id' => (int)$user->sub,
                 'role_id' => (int)$user->role_id,
             ];

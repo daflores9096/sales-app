@@ -190,7 +190,9 @@ class SaleRepository
         ?string $to,
         ?string $q,
         ?int $userId = null,
-        bool $isAdmin = false
+        bool $isAdmin = false,
+        ?string $paymentMethod = null,
+        ?int $sellerId = null
     ): array {
 
         $offset = ($page - 1) * $limit;
@@ -204,6 +206,9 @@ class SaleRepository
             }
             $where[] = 's.user_id = :user_id';
             $params['user_id'] = $userId;
+        } elseif ($sellerId !== null && $sellerId > 0) {
+            $where[] = 's.user_id = :seller_id';
+            $params['seller_id'] = $sellerId;
         }
 
         if ($status) {
@@ -219,6 +224,11 @@ class SaleRepository
         if ($to) {
             $where[] = 'DATE(s.created_at) <= :to';
             $params['to'] = $to;
+        }
+
+        if ($paymentMethod) {
+            $where[] = 's.payment_method = :payment_method';
+            $params['payment_method'] = $paymentMethod;
         }
 
         if ($q) {

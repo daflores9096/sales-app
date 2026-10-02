@@ -227,6 +227,15 @@ class SaleService
         $userId = isset($filters['user_id']) ? (int)$filters['user_id'] : null;
         $isAdmin = in_array($roleId, [1, 2], true);
 
+        $paymentMethod = $filters['payment_method'] ?? null;
+        if ($paymentMethod !== null && $paymentMethod !== '' && !in_array($paymentMethod, ['cash', 'qr', 'card'], true)) {
+            $paymentMethod = null;
+        }
+
+        $sellerId = isset($filters['seller_id']) && $filters['seller_id'] !== '' && $filters['seller_id'] !== null
+            ? (int)$filters['seller_id']
+            : null;
+
         return $this->saleRepository->paginate(
             $filters['page'],
             $filters['limit'],
@@ -235,7 +244,9 @@ class SaleService
             $filters['to'] ?? null,
             $filters['q'] ?? null,
             $userId,
-            $isAdmin
+            $isAdmin,
+            $paymentMethod ?: null,
+            $sellerId
         );
     }
 

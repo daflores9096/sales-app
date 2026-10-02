@@ -13,9 +13,18 @@ class ReportRepository
         $this->db = Database::getInstance();
     }
 
-    private function reportWhere(string $column, ?string $from, ?string $to, array &$params, ?int $userId = null, string $userColumn = 'user_id'): string
+    private function reportWhere(
+        string $column,
+        ?string $from,
+        ?string $to,
+        array &$params,
+        ?int $userId = null,
+        string $userColumn = 'user_id',
+        string $statusColumn = 'status'
+    ): string
     {
-        $where = [];
+        // El dashboard / reportes solo deben contar ventas activas (no anuladas).
+        $where = ["$statusColumn = 'active'"];
 
         if ($from) {
             $where[] = "DATE($column) >= :from";
@@ -32,7 +41,7 @@ class ReportRepository
             $params['user_id'] = $userId;
         }
 
-        return $where ? 'WHERE ' . implode(' AND ', $where) : '';
+        return 'WHERE ' . implode(' AND ', $where);
     }
 
     private function executeReport(string $sql, array $params): array
@@ -70,7 +79,7 @@ class ReportRepository
     public function salesByProduct(?string $from = null, ?string $to = null, ?int $userId = null): array
     {
         $params = [];
-        $whereSql = $this->reportWhere('s.created_at', $from, $to, $params, $userId, 's.user_id');
+        $whereSql = $this->reportWhere('s.created_at', $from, $to, $params, $userId, 's.user_id', 's.status');
 
         return $this->executeReport("
             SELECT p.name AS product_name,
@@ -109,7 +118,7 @@ class ReportRepository
     public function salesByUser(?string $from = null, ?string $to = null, ?int $userId = null): array
     {
         $params = [];
-        $whereSql = $this->reportWhere('s.created_at', $from, $to, $params, $userId, 's.user_id');
+        $whereSql = $this->reportWhere('s.created_at', $from, $to, $params, $userId, 's.user_id', 's.status');
 
         return $this->executeReport("
             SELECT u.username,

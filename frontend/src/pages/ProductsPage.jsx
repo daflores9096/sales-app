@@ -1,10 +1,19 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, Pencil, Search, Trash2 } from 'lucide-react';
+import { ArrowDown, ArrowUp, ArrowUpDown, ChevronLeft, ChevronRight, Pencil, Search, Trash2 } from 'lucide-react';
 import Modal from '../components/Modal.jsx';
 import { createProduct, deleteProduct, getProducts, updateProduct } from '../api.js';
 
 const emptyForm = { id: null, name: '', price: '', price_sale: '', stock: '', barcode: '', brand: '' };
+
+const SORTABLE_COLUMNS = [
+  { key: 'id', label: 'ID', type: 'number' },
+  { key: 'name', label: 'Nombre', type: 'string' },
+  { key: 'price', label: 'Precio', type: 'number' },
+  { key: 'price_sale', label: 'Precio venta', type: 'number' },
+  { key: 'stock', label: 'Stock', type: 'number' },
+  { key: 'brand', label: 'Marca', type: 'string' },
+];
 
 function parseFormNumber(value, { integer = false, defaultValue = null } = {}) {
   const normalized = String(value ?? '').trim().replace(',', '.');
@@ -17,6 +26,30 @@ function parseFormNumber(value, { integer = false, defaultValue = null } = {}) {
   return integer ? Math.trunc(parsed) : parsed;
 }
 
+function isComboProduct(product) {
+  return Number(product?.is_combo ?? 0) === 1 || String(product?.brand ?? '').toLowerCase() === 'combo';
+}
+
+function compareValues(a, b, type) {
+  if (type === 'number') {
+    const na = Number(a);
+    const nb = Number(b);
+    const aValid = Number.isFinite(na);
+    const bValid = Number.isFinite(nb);
+    if (!aValid && !bValid) return 0;
+    if (!aValid) return 1;
+    if (!bValid) return -1;
+    return na - nb;
+  }
+
+  const sa = String(a ?? '').toLowerCase();
+  const sb = String(b ?? '').toLowerCase();
+  if (!sa && !sb) return 0;
+  if (!sa) return 1;
+  if (!sb) return -1;
+  return sa.localeCompare(sb, 'es', { sensitivity: 'base', numeric: true });
+}
+
 export default function ProductsPage() {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -25,17 +58,49 @@ export default function ProductsPage() {
   const [editMode, setEditMode] = useState(false);
   const [form, setForm] = useState(emptyForm);
   const [search, setSearch] = useState('');
+  const [brandFilter, setBrandFilter] = useState('all');
+  const [sortKey, setSortKey] = useState('id');
+  const [sortDir, setSortDir] = useState('desc');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
 
+  const brandOptions = useMemo(() => {
+    const brands = new Set();
+    for (const product of products) {
+      if (isComboProduct(product)) continue;
+      const brand = String(product.brand ?? '').trim();
+      if (brand) brands.add(brand);
+    }
+    return Array.from(brands).sort((a, b) => a.localeCompare(b, 'es', { sensitivity: 'base' }));
+  }, [products]);
+
   const filteredProducts = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return products;
-    return products.filter((p) =>
-      [p.id, p.name, p.brand, p.barcode, p.price, p.price_sale, p.stock]
-        .some((value) => String(value ?? '').toLowerCase().includes(q)),
-    );
-  }, [products, search]);
+
+    let list = products.filter((p) => {
+      if (brandFilter === 'combos') {
+        if (!isComboProduct(p)) return false;
+      } else if (brandFilter !== 'all') {
+        if (isComboProduct(p)) return false;
+        if (String(p.brand ?? '').trim() !== brandFilter) return false;
+      }
+
+      if (!q) return true;
+      return [p.id, p.name, p.brand, p.barcode, p.price, p.price_sale, p.stock]
+        .some((value) => String(value ?? '').toLowerCase().includes(q));
+    });
+
+    const column = SORTABLE_COLUMNS.find((c) => c.key === sortKey) ?? SORTABLE_COLUMNS[0];
+    const direction = sortDir === 'asc' ? 1 : -1;
+
+    list = [...list].sort((a, b) => {
+      const result = compareValues(a[column.key], b[column.key], column.type);
+      if (result !== 0) return result * direction;
+      return (Number(a.id) - Number(b.id)) * direction;
+    });
+
+    return list;
+  }, [products, search, brandFilter, sortKey, sortDir]);
 
   const totalPages = Math.max(1, Math.ceil(filteredProducts.length / pageSize));
   const paginatedProducts = filteredProducts.slice((page - 1) * pageSize, page * pageSize);
@@ -59,7 +124,16 @@ export default function ProductsPage() {
 
   useEffect(() => {
     setPage(1);
-  }, [search, pageSize]);
+  }, [search, pageSize, brandFilter, sortKey, sortDir]);
+
+  function toggleSort(columnKey) {
+    if (sortKey === columnKey) {
+      setSortDir((dir) => (dir === 'asc' ? 'desc' : 'asc'));
+      return;
+    }
+    setSortKey(columnKey);
+    setSortDir(columnKey === 'name' || columnKey === 'brand' ? 'asc' : 'desc');
+  }
 
   function startCreate() {
     setEditMode(false);
@@ -159,6 +233,9 @@ export default function ProductsPage() {
             <ListToolbar
               search={search}
               setSearch={setSearch}
+              brandFilter={brandFilter}
+              setBrandFilter={setBrandFilter}
+              brandOptions={brandOptions}
               pageSize={pageSize}
               setPageSize={setPageSize}
               total={filteredProducts.length}
@@ -166,29 +243,42 @@ export default function ProductsPage() {
             />
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm">
-                <thead className="bg-slate-50 text-slate-600">
+                <thead className="bg-[#0b2545] text-white">
                   <tr>
-                    <th className="px-4 py-3">ID</th>
-                    <th className="px-4 py-3">Nombre</th>
-                    <th className="px-4 py-3">Precio</th>
-                    <th className="px-4 py-3">Precio venta</th>
-                    <th className="px-4 py-3">Stock</th>
-                    <th className="px-4 py-3">Marca</th>
-                    <th className="px-4 py-3 text-right">Acciones</th>
+                    {SORTABLE_COLUMNS.map((column) => (
+                      <th key={column.key} className="px-4 py-3">
+                        <SortableHeader
+                          label={column.label}
+                          active={sortKey === column.key}
+                          direction={sortDir}
+                          onClick={() => toggleSort(column.key)}
+                        />
+                      </th>
+                    ))}
+                    <th className="px-4 py-3 text-right uppercase">Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
                   {paginatedProducts.length === 0 ? (
                     <tr>
                       <td colSpan={7} className="px-4 py-8 text-center text-slate-500">
-                        No hay productos que coincidan con la búsqueda.
+                        No hay productos que coincidan con la búsqueda o el filtro.
                       </td>
                     </tr>
                   ) : (
                     paginatedProducts.map((p) => (
                       <tr key={p.id} className="border-t border-slate-100 hover:bg-slate-50">
                         <td className="px-4 py-3">{p.id}</td>
-                        <td className="px-4 py-3 font-medium">{p.name}</td>
+                        <td className="px-4 py-3 font-medium">
+                          <span className="inline-flex flex-wrap items-center gap-2">
+                            {p.name}
+                            {isComboProduct(p) && (
+                              <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-indigo-700">
+                                Combo
+                              </span>
+                            )}
+                          </span>
+                        </td>
                         <td className="px-4 py-3">${p.price}</td>
                         <td className="px-4 py-3">${p.price_sale}</td>
                         <td className="px-4 py-3">{p.stock}</td>
@@ -241,7 +331,33 @@ export default function ProductsPage() {
   );
 }
 
-function ListToolbar({ search, setSearch, pageSize, setPageSize, total, placeholder }) {
+function SortableHeader({ label, active, direction, onClick }) {
+  const Icon = !active ? ArrowUpDown : direction === 'asc' ? ArrowUp : ArrowDown;
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="inline-flex items-center gap-1 text-sm uppercase text-white transition hover:text-white/85"
+      title={`Ordenar por ${label}`}
+    >
+      {label}
+      <Icon size={14} className={active ? 'opacity-100' : 'opacity-70'} />
+    </button>
+  );
+}
+
+function ListToolbar({
+  search,
+  setSearch,
+  brandFilter,
+  setBrandFilter,
+  brandOptions,
+  pageSize,
+  setPageSize,
+  total,
+  placeholder,
+}) {
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 p-4">
       <div className="relative min-w-[220px] flex-1">
@@ -253,7 +369,23 @@ function ListToolbar({ search, setSearch, pageSize, setPageSize, total, placehol
           placeholder={placeholder}
         />
       </div>
-      <div className="flex items-center gap-2 text-sm text-slate-500">
+      <div className="flex flex-wrap items-center gap-2 text-sm text-slate-500">
+        <label className="inline-flex items-center gap-2">
+          <span className="whitespace-nowrap">Marca / Combo</span>
+          <select
+            className="min-w-[160px] rounded-lg border border-slate-300 px-2 py-1.5 text-slate-700"
+            value={brandFilter}
+            onChange={(e) => setBrandFilter(e.target.value)}
+          >
+            <option value="all">Todos</option>
+            <option value="combos">Combos</option>
+            {brandOptions.map((brand) => (
+              <option key={brand} value={brand}>
+                {brand}
+              </option>
+            ))}
+          </select>
+        </label>
         <span>{total} resultados</span>
         <select
           className="rounded-lg border border-slate-300 px-2 py-1.5"
