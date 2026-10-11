@@ -25,6 +25,39 @@ class ProductRepository
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
+    /**
+     * Productos activos con unidades vendidas (ventas active, historial completo).
+     */
+    public function findAllWithSoldTotals(): array
+    {
+        $sql = "
+            SELECT
+                p.id,
+                p.name,
+                p.barcode,
+                p.brand,
+                p.price,
+                p.price_sale,
+                p.stock,
+                p.is_combo,
+                p.active,
+                COALESCE(sold.total_sold, 0) AS sold
+            FROM products p
+            LEFT JOIN (
+                SELECT si.product_id, SUM(si.quantity) AS total_sold
+                FROM sale_items si
+                INNER JOIN sales s ON s.id = si.sale_id
+                WHERE s.status = 'active'
+                GROUP BY si.product_id
+            ) sold ON sold.product_id = p.id
+            WHERE p.active = 1
+            ORDER BY p.id DESC
+        ";
+
+        $stmt = $this->db->query($sql);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
     public function findById(int $id): ?array
     {
         $stmt = $this->db->prepare("SELECT * FROM products WHERE id = :id LIMIT 1");

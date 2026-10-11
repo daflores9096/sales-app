@@ -90,25 +90,26 @@ class ReportRepository
             JOIN products p ON p.id = si.product_id
             $whereSql
             GROUP BY p.id
-            ORDER BY total_revenue DESC
+            ORDER BY total_quantity DESC, total_revenue DESC
         ", $params);
     }
 
     /**
-     * Ventas agrupadas por tipo de pago.
+     * Ventas agrupadas por tipo de pago (desglose real desde sale_payments).
      */
     public function salesByPaymentMethod(?string $from = null, ?string $to = null, ?int $userId = null): array
     {
         $params = [];
-        $whereSql = $this->reportWhere('created_at', $from, $to, $params, $userId);
+        $whereSql = $this->reportWhere('s.created_at', $from, $to, $params, $userId, 's.user_id', 's.status');
 
         return $this->executeReport("
-            SELECT payment_method,
-                   COUNT(id) AS total_sales,
-                   COALESCE(SUM(total), 0) AS total_revenue
-            FROM sales
+            SELECT sp.payment_method,
+                   COUNT(DISTINCT sp.sale_id) AS total_sales,
+                   COALESCE(SUM(sp.amount), 0) AS total_revenue
+            FROM sale_payments sp
+            INNER JOIN sales s ON s.id = sp.sale_id
             $whereSql
-            GROUP BY payment_method
+            GROUP BY sp.payment_method
         ", $params);
     }
 

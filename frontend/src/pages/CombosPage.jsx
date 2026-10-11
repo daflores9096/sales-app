@@ -19,6 +19,7 @@ import {
   setComboStatus,
   updateCombo,
 } from '../api.js';
+import { formatDateTime as formatDate } from '../date.js';
 
 const emptyForm = {
   id: null,
@@ -40,19 +41,6 @@ function parseFormNumber(value, { integer = false, defaultValue = null } = {}) {
 function formatMoney(value) {
   const amount = Number(value ?? 0);
   return `$${amount.toFixed(2)}`;
-}
-
-function formatDate(value) {
-  if (!value) return '—';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return String(value);
-  return date.toLocaleString('es-BO', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
 }
 
 function calcItemsTotal(items) {

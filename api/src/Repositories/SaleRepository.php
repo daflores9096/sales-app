@@ -32,6 +32,31 @@ class SaleRepository
         return (int)$this->db->lastInsertId();
     }
 
+    public function addSalePayment(int $saleId, string $paymentMethod, float $amount): void
+    {
+        $stmt = $this->db->prepare("
+            INSERT INTO sale_payments (sale_id, payment_method, amount)
+            VALUES (:sale_id, :payment_method, :amount)
+        ");
+        $stmt->execute([
+            'sale_id' => $saleId,
+            'payment_method' => $paymentMethod,
+            'amount' => $amount,
+        ]);
+    }
+
+    public function getSalePayments(int $saleId): array
+    {
+        $stmt = $this->db->prepare("
+            SELECT id, payment_method, amount
+            FROM sale_payments
+            WHERE sale_id = :sale_id
+            ORDER BY id ASC
+        ");
+        $stmt->execute(['sale_id' => $saleId]);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
     public function addSaleItem(
         int $saleId,
         int $productId,
@@ -227,8 +252,21 @@ class SaleRepository
         }
 
         if ($paymentMethod) {
-            $where[] = 's.payment_method = :payment_method';
-            $params['payment_method'] = $paymentMethod;
+            if ($paymentMethod === 'mixed') {
+                $where[] = "s.payment_method = 'mixed'";
+            } else {
+                $where[] = '(
+                    s.payment_method = :payment_method
+                    OR EXISTS (
+                        SELECT 1
+                        FROM sale_payments sp
+                        WHERE sp.sale_id = s.id
+                          AND sp.payment_method = :payment_method_exists
+                    )
+                )';
+                $params['payment_method'] = $paymentMethod;
+                $params['payment_method_exists'] = $paymentMethod;
+            }
         }
 
         if ($q) {

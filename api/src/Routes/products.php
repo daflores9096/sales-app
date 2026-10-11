@@ -26,6 +26,11 @@ if (str_starts_with($path, '/api/products')) {
     if ($path === '/api/products/import' && $method === 'POST') {
         $controller->import();
     }
+    // Totales vendidos (solo admin/superadmin)
+    elseif ($path === '/api/products/sold-totals' && $method === 'GET') {
+        AuthMiddleware::authorize(['admin', 'superadmin'], $user);
+        $controller->soldTotals();
+    }
     // Rutas existentes
     elseif ($path === '/api/products' && $method === 'GET') {
         $controller->list($user);

@@ -3,6 +3,7 @@ import AppLayout from './layouts/AppLayout.jsx';
 import { HomeRedirect, RequireAuth, RequireRole } from './auth.jsx';
 import LoginPage from './pages/LoginPage.jsx';
 import DashboardPage from './pages/DashboardPage.jsx';
+import ProductsSoldPage from './pages/ProductsSoldPage.jsx';
 import ProductsPage from './pages/ProductsPage.jsx';
 import ProductImportPage from './pages/ProductImportPage.jsx';
 import CombosPage from './pages/CombosPage.jsx';
@@ -27,6 +28,14 @@ export const router = createBrowserRouter([
         element: (
           <RequireRole roles={['admin', 'superadmin', 'user']}>
             <DashboardPage />
+          </RequireRole>
+        ),
+      },
+      {
+        path: 'dashboard/productos-vendidos',
+        element: (
+          <RequireRole roles={['admin', 'superadmin']}>
+            <ProductsSoldPage />
           </RequireRole>
         ),
       },

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { Plus, Trash2 } from 'lucide-react';
 import { createSale, getProducts } from '../api.js';
 import Modal from '../components/Modal.jsx';
 
@@ -15,6 +16,10 @@ function parseMoney(value) {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+function roundMoney(value) {
+  return Math.round((Number(value) || 0) * 100) / 100;
+}
+
 export default function SalesPage() {
   const [products, setProducts] = useState([]);
   const [filtered, setFiltered] = useState([]);
@@ -22,7 +27,7 @@ export default function SalesPage() {
   const [search, setSearch] = useState('');
   const [scannerMode, setScannerMode] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState('cash');
+  const [payments, setPayments] = useState([{ method: 'cash', amount: '' }]);
   const [amountReceived, setAmountReceived] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -92,53 +97,112 @@ export default function SalesPage() {
     });
   }
 
-  const cartTotal = cart.reduce((sum, p) => sum + p.qty * Number(p.price_sale ?? p.price), 0);
+  const cartTotal = roundMoney(
+    cart.reduce((sum, p) => sum + p.qty * Number(p.price_sale ?? p.price), 0),
+  );
 
+  const paymentAmounts = useMemo(
+    () => payments.map((p) => parseMoney(p.amount)),
+    [payments],
+  );
+
+  const paidTotal = useMemo(
+    () => roundMoney(paymentAmounts.reduce((sum, amount) => sum + (amount ?? 0), 0)),
+    [paymentAmounts],
+  );
+
+  const remaining = roundMoney(cartTotal - paidTotal);
+
+  const cashPortion = useMemo(
+    () =>
+      roundMoney(
+        payments.reduce((sum, payment, index) => {
+          if (payment.method !== 'cash') return sum;
+          return sum + (paymentAmounts[index] ?? 0);
+        }, 0),
+      ),
+    [payments, paymentAmounts],
+  );
+
+  const hasCashPayment = cashPortion > 0;
   const receivedValue = useMemo(() => parseMoney(amountReceived), [amountReceived]);
   const changeDue = useMemo(() => {
-    if (receivedValue === null) return null;
-    return Math.round((receivedValue - cartTotal) * 100) / 100;
-  }, [receivedValue, cartTotal]);
+    if (!hasCashPayment || receivedValue === null) return null;
+    return roundMoney(receivedValue - cashPortion);
+  }, [hasCashPayment, receivedValue, cashPortion]);
 
-  const cashPaymentReady =
-    paymentMethod !== 'cash' ||
-    (receivedValue !== null && receivedValue >= cartTotal);
+  const paymentsReady =
+    payments.length > 0 &&
+    paymentAmounts.every((amount) => amount !== null && amount > 0) &&
+    Math.abs(remaining) < 0.009 &&
+    (!hasCashPayment || (receivedValue !== null && receivedValue >= cashPortion - 0.009));
 
   function openCheckoutConfirm() {
     if (!cart.length) return;
-    setPaymentMethod('cash');
+    setPayments([{ method: 'cash', amount: cartTotal.toFixed(2) }]);
     setAmountReceived('');
     setError('');
     setShowConfirmModal(true);
   }
 
+  // Solo al abrir el modal: no reenfocar cuando el usuario edita montos de pago
+  // (antes, al escribir el 1er dígito en efectivo, hasCashPayment pasaba a true y robaba el foco).
   useEffect(() => {
-    if (!showConfirmModal || paymentMethod !== 'cash') return;
-    const t = setTimeout(() => amountReceivedRef.current?.focus(), 150);
+    if (!showConfirmModal) return;
+    const t = setTimeout(() => {
+      const hasCashMethod = payments.some((p) => p.method === 'cash');
+      if (hasCashMethod) amountReceivedRef.current?.focus();
+    }, 150);
     return () => clearTimeout(t);
-  }, [showConfirmModal, paymentMethod]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- solo al abrir el modal
+  }, [showConfirmModal]);
+
+  function updatePayment(index, patch) {
+    setPayments((prev) => prev.map((row, i) => (i === index ? { ...row, ...patch } : row)));
+    setError('');
+  }
+
+  function addPaymentRow() {
+    const nextAmount = remaining > 0 ? remaining.toFixed(2) : '';
+    setPayments((prev) => [...prev, { method: 'qr', amount: nextAmount }]);
+    setError('');
+  }
+
+  function removePaymentRow(index) {
+    setPayments((prev) => {
+      if (prev.length === 1) return prev;
+      return prev.filter((_, i) => i !== index);
+    });
+    setError('');
+  }
 
   async function checkout() {
     if (!cart.length) return;
 
-    if (paymentMethod === 'cash') {
-      if (receivedValue === null) {
-        setError('Ingresa el monto que entregó el cliente');
+    if (!paymentsReady) {
+      if (Math.abs(remaining) >= 0.009) {
+        setError(
+          remaining > 0
+            ? `Falta por pagar $${remaining.toFixed(2)}`
+            : `Los pagos exceden el total en $${Math.abs(remaining).toFixed(2)}`,
+        );
+      } else if (hasCashPayment && (receivedValue === null || receivedValue < cashPortion)) {
+        setError('El monto recibido en efectivo es insuficiente');
         amountReceivedRef.current?.focus();
-        return;
+      } else {
+        setError('Completa todos los montos de pago');
       }
-      if (receivedValue < cartTotal) {
-        setError('El monto recibido es insuficiente para cubrir el total');
-        amountReceivedRef.current?.focus();
-        return;
-      }
+      return;
     }
 
     setSaving(true);
     setError('');
     try {
       await createSale({
-        payment_method: paymentMethod,
+        payments: payments.map((p) => ({
+          payment_method: p.method,
+          amount: parseMoney(p.amount),
+        })),
         items: cart.map((p) => ({
           product_id: p.id,
           quantity: p.qty,
@@ -148,13 +212,13 @@ export default function SalesPage() {
       setCart([]);
       setSearch('');
       setAmountReceived('');
+      setPayments([{ method: 'cash', amount: '' }]);
       setShowConfirmModal(false);
       await loadProducts();
       searchRef.current?.focus();
     } catch (err) {
       setError(err.message || 'No se pudo registrar la venta');
-    }
-    finally {
+    } finally {
       setSaving(false);
     }
   }
@@ -172,7 +236,9 @@ export default function SalesPage() {
         <h1 className="text-2xl font-bold text-white">Ventas (TPV)</h1>
         <p className="text-sm text-white/75">Selecciona productos y registra la venta</p>
       </div>
-      {error && <div className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
+      {error && !showConfirmModal && (
+        <div className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
+      )}
       <div className="grid gap-4 lg:grid-cols-3">
         <div className="space-y-3 lg:col-span-2">
           <div className="flex flex-wrap gap-2">
@@ -261,32 +327,6 @@ export default function SalesPage() {
       {showConfirmModal && (
         <Modal title="Confirmar venta" onClose={() => setShowConfirmModal(false)} wide>
           <div className="space-y-4">
-            <div>
-              <p className="text-sm text-slate-500">Seleccione el tipo de venta antes de registrar.</p>
-              <div className="mt-3 grid gap-2 sm:grid-cols-3">
-                {PAYMENT_METHODS.map((method) => (
-                  <label
-                    key={method.value}
-                    className={`cursor-pointer rounded-xl border px-4 py-3 text-center text-sm font-semibold transition ${
-                      paymentMethod === method.value
-                        ? 'border-[#0b2545] bg-blue-50 text-[#0b2545]'
-                        : 'border-slate-200 text-slate-600 hover:border-slate-300'
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="payment_method"
-                      value={method.value}
-                      checked={paymentMethod === method.value}
-                      onChange={(e) => setPaymentMethod(e.target.value)}
-                      className="sr-only"
-                    />
-                    {method.label}
-                  </label>
-                ))}
-              </div>
-            </div>
-
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="bg-[#0b2545] text-left text-xs uppercase text-white">
@@ -317,24 +357,107 @@ export default function SalesPage() {
 
             <p className="text-right text-xl font-bold text-slate-800">Total: ${cartTotal.toFixed(2)}</p>
 
-            {paymentMethod === 'cash' && (
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <h3 className="text-sm font-semibold text-slate-800">Pagos</h3>
+                  <p className="text-xs text-slate-500">
+                    Puedes combinar métodos (ej. QR + Efectivo). La suma debe igualar el total.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={addPaymentRow}
+                  className="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-100"
+                >
+                  <Plus size={16} />
+                  Agregar pago
+                </button>
+              </div>
+
+              <div className="space-y-2">
+                {payments.map((payment, index) => (
+                  <div key={index} className="grid gap-2 sm:grid-cols-[1fr_140px_auto]">
+                    <select
+                      className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+                      value={payment.method}
+                      onChange={(e) => updatePayment(index, { method: e.target.value })}
+                    >
+                      {PAYMENT_METHODS.map((method) => (
+                        <option key={method.value} value={method.value}>
+                          {method.label}
+                        </option>
+                      ))}
+                    </select>
+                    <input
+                      className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+                      type="text"
+                      inputMode="decimal"
+                      placeholder="Monto"
+                      value={payment.amount}
+                      onChange={(e) => updatePayment(index, { amount: e.target.value })}
+                    />
+                    <button
+                      type="button"
+                      className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-slate-300 bg-white text-red-600 hover:bg-red-50 disabled:opacity-40"
+                      onClick={() => removePaymentRow(index)}
+                      disabled={payments.length === 1}
+                      title="Quitar pago"
+                      aria-label="Quitar pago"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-3 grid gap-1 text-sm sm:grid-cols-3">
+                <div className="rounded-lg bg-white px-3 py-2">
+                  <div className="text-xs text-slate-500">Pagado</div>
+                  <div className="font-semibold text-slate-800">${paidTotal.toFixed(2)}</div>
+                </div>
+                <div className="rounded-lg bg-white px-3 py-2">
+                  <div className="text-xs text-slate-500">Pendiente</div>
+                  <div
+                    className={`font-semibold ${
+                      Math.abs(remaining) < 0.009
+                        ? 'text-emerald-700'
+                        : remaining > 0
+                          ? 'text-amber-700'
+                          : 'text-red-600'
+                    }`}
+                  >
+                    ${remaining.toFixed(2)}
+                  </div>
+                </div>
+                <div className="rounded-lg bg-white px-3 py-2">
+                  <div className="text-xs text-slate-500">Total venta</div>
+                  <div className="font-semibold text-slate-800">${cartTotal.toFixed(2)}</div>
+                </div>
+              </div>
+            </div>
+
+            {hasCashPayment && (
               <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
                 <label className="mb-1 block text-sm font-medium text-slate-700">
-                  Monto recibido del cliente
+                  Monto recibido en efectivo
                 </label>
+                <p className="mb-2 text-xs text-slate-500">
+                  Parte en efectivo de la venta: ${cashPortion.toFixed(2)}
+                </p>
                 <input
                   ref={amountReceivedRef}
                   className="w-full rounded-lg border border-slate-300 px-3 py-2 text-lg font-semibold"
                   type="text"
                   inputMode="decimal"
-                  placeholder="Ej: 200"
+                  placeholder="Ej: 100"
                   value={amountReceived}
                   onChange={(e) => {
                     setAmountReceived(e.target.value);
                     setError('');
                   }}
                   onKeyDown={(e) => {
-                    if (e.key === 'Enter' && cashPaymentReady && !saving) {
+                    if (e.key === 'Enter' && paymentsReady && !saving) {
                       e.preventDefault();
                       checkout();
                     }
@@ -358,11 +481,6 @@ export default function SalesPage() {
                         : `$${changeDue.toFixed(2)}`}
                   </span>
                 </div>
-                {receivedValue !== null && receivedValue < cartTotal && (
-                  <p className="mt-2 text-xs text-red-600">
-                    El monto recibido debe ser mayor o igual al total de la venta.
-                  </p>
-                )}
               </div>
             )}
 
@@ -381,7 +499,7 @@ export default function SalesPage() {
               <button
                 type="button"
                 onClick={checkout}
-                disabled={saving || !cashPaymentReady}
+                disabled={saving || !paymentsReady}
                 className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-60"
               >
                 {saving ? 'Registrando…' : 'Aceptar registro'}

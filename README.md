@@ -305,7 +305,7 @@ El overlay `docker-compose.dev.yml` monta `frontend/dist` directamente en Nginx.
 - Gestion de combos (paquetes de productos) para admin y vendedor, con precio automatico, costo extra de armado y publicacion en el catalogo.
 - Importacion Excel de productos con columna `stock` y actualizacion de productos existentes.
 - TPV para registrar ventas.
-- Confirmacion de venta con metodo de pago: Efectivo, QR o Tarjeta.
+- Confirmacion de venta con metodo de pago: Efectivo, QR o Tarjeta (incluye pagos mixtos).
 - Historico de ventas, detalle y anulacion con restauracion de stock.
 - Gestion de usuarios segun permisos.
 
@@ -579,6 +579,18 @@ docker compose exec -T db mysql -uapp_user -papp_password app_db < database/04-c
 ```
 
 Ese script agrega `products.is_combo`, `products.active` y crea las tablas `combos` / `combo_items`.
+
+Migracion de pagos multiples (instalaciones existentes):
+
+```powershell
+Get-Content database\05-sale-payments.sql | docker compose exec -T db mysql -uapp_user -papp_password app_db
+```
+
+```bash
+docker compose exec -T db mysql -uapp_user -papp_password app_db < database/05-sale-payments.sql
+```
+
+Ese script agrega soporte `mixed` en `sales.payment_method`, crea `sale_payments` y migra ventas existentes.
 
 Antes de aplicar cambios de esquema en produccion:
 

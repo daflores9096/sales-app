@@ -24,10 +24,12 @@ class SaleService
     }
 
     /**
-     * Crea una venta con varios productos.
+     * Crea una venta con varios productos y uno o más pagos.
      * Si el ítem es un combo, descuenta el stock de cada producto componente.
+     *
+     * @param array $payments [{payment_method|method, amount}, ...]
      */
-    public function createSale(int $userId, array $items, string $paymentMethod = 'cash'): int
+    public function createSale(int $userId, array $items, array $payments = []): int
     {
         try {
             $this->db->beginTransaction();
@@ -77,13 +79,8 @@ class SaleService
                         $componentStockUpdates[$productId] = ($componentStockUpdates[$productId] ?? 0) + $delta;
                     }
                     // El stock del producto-combo se sincroniza luego con lo armable
-                    $newComboStock = max(0, (int)$product['stock'] - $saleQty);
+                    $newComboStock = (int)$product['stock'] - $saleQty;
                 } else {
-                    $pendingAsComponent = (int)($componentStockUpdates[(int)$product['id']] ?? 0);
-                    $available = (int)$product['stock'] - $pendingAsComponent;
-                    if ($available < $saleQty) {
-                        throw new Exception("Stock insuficiente para {$product['name']}");
-                    }
                     $newComboStock = (int)$product['stock'] - $saleQty;
                 }
 
@@ -98,8 +95,21 @@ class SaleService
                 ];
             }
 
+            $normalizedPayments = $this->normalizePayments($payments, round((float)$total, 2));
+            $salePaymentMethod = count($normalizedPayments) === 1
+                ? $normalizedPayments[0]['payment_method']
+                : 'mixed';
+
             // Crear venta
-            $saleId = $this->saleRepository->createSale($userId, $total, $paymentMethod);
+            $saleId = $this->saleRepository->createSale($userId, round((float)$total, 2), $salePaymentMethod);
+
+            foreach ($normalizedPayments as $payment) {
+                $this->saleRepository->addSalePayment(
+                    $saleId,
+                    $payment['payment_method'],
+                    $payment['amount']
+                );
+            }
 
             // Registrar items y actualizar stock del producto vendido (combo o normal)
             foreach ($productsCache as $p) {
@@ -164,10 +174,27 @@ class SaleService
         }
 
         $items = $this->saleRepository->getSaleItems($saleId);
+        $payments = $this->saleRepository->getSalePayments($saleId);
+
+        // Compatibilidad: ventas antiguas sin filas en sale_payments
+        if (empty($payments) && !empty($sale['payment_method']) && $sale['payment_method'] !== 'mixed') {
+            $payments = [[
+                'id' => null,
+                'payment_method' => $sale['payment_method'],
+                'amount' => (float)$sale['total'],
+            ]];
+        }
 
         return [
             'sale' => $sale,
-            'items' => $items
+            'items' => $items,
+            'payments' => array_map(static function (array $payment): array {
+                return [
+                    'id' => $payment['id'] !== null ? (int)$payment['id'] : null,
+                    'payment_method' => $payment['payment_method'],
+                    'amount' => (float)$payment['amount'],
+                ];
+            }, $payments),
         ];
     }
 
@@ -228,7 +255,7 @@ class SaleService
         $isAdmin = in_array($roleId, [1, 2], true);
 
         $paymentMethod = $filters['payment_method'] ?? null;
-        if ($paymentMethod !== null && $paymentMethod !== '' && !in_array($paymentMethod, ['cash', 'qr', 'card'], true)) {
+        if ($paymentMethod !== null && $paymentMethod !== '' && !in_array($paymentMethod, ['cash', 'qr', 'card', 'mixed'], true)) {
             $paymentMethod = null;
         }
 
@@ -251,12 +278,13 @@ class SaleService
     }
 
     /**
-     * Valida y reserva stock de componentes. Devuelve mapa product_id => cantidad a descontar.
+     * Reserva stock de componentes (permite stock en cero o negativo).
+     * Devuelve mapa product_id => cantidad a descontar.
      *
-     * @param array<int,int> $pendingDeltas cantidades ya reservadas en esta misma venta
+     * @param array<int,int> $_pendingDeltas reservado por compatibilidad de firma
      * @return array<int,int>
      */
-    private function reserveComboComponents(int $comboProductId, int $saleQty, array $pendingDeltas = []): array
+    private function reserveComboComponents(int $comboProductId, int $saleQty, array $_pendingDeltas = []): array
     {
         $combo = $this->comboRepository->findByProductId($comboProductId);
         if (!$combo) {
@@ -283,15 +311,6 @@ class SaleService
 
             if ((int)($locked['active'] ?? 1) !== 1) {
                 throw new Exception("El componente {$locked['name']} no está disponible");
-            }
-
-            $alreadyReserved = (int)($pendingDeltas[$componentProductId] ?? 0);
-            $available = (int)$locked['stock'] - $alreadyReserved;
-
-            if ($available < $needed) {
-                throw new Exception(
-                    "Stock insuficiente de {$locked['name']} para armar el combo (necesario: {$needed}, disponible: {$available})"
-                );
             }
 
             $deltas[$componentProductId] = ($deltas[$componentProductId] ?? 0) + $needed;
@@ -396,6 +415,64 @@ class SaleService
         }
 
         return $product;
+    }
+
+    /**
+     * Normaliza y valida pagos.
+     *
+     * @return array<int, array{payment_method:string, amount:float}>
+     */
+    private function normalizePayments(array $payments, float $saleTotal): array
+    {
+        $allowed = ['cash', 'qr', 'card'];
+        $normalized = [];
+
+        foreach ($payments as $index => $payment) {
+            $method = $payment['payment_method'] ?? $payment['method'] ?? null;
+            $fillTotal = !empty($payment['fill_total']);
+            $amount = $payment['amount'] ?? null;
+
+            if ($method === null) {
+                throw new Exception('Cada pago requiere método (pago ' . ($index + 1) . ')');
+            }
+
+            $method = strtolower(trim((string)$method));
+            if (!in_array($method, $allowed, true)) {
+                throw new Exception("Método de pago inválido: {$method}");
+            }
+
+            if ($fillTotal) {
+                $amount = $saleTotal;
+            } elseif ($amount === null || $amount === '') {
+                throw new Exception('Cada pago requiere monto (pago ' . ($index + 1) . ')');
+            } elseif (!is_numeric($amount)) {
+                throw new Exception('El monto de cada pago debe ser numérico');
+            } else {
+                $amount = round((float)$amount, 2);
+            }
+
+            if ($amount <= 0) {
+                throw new Exception('El monto de cada pago debe ser mayor a 0');
+            }
+
+            $normalized[] = [
+                'payment_method' => $method,
+                'amount' => round((float)$amount, 2),
+            ];
+        }
+
+        if (empty($normalized)) {
+            throw new Exception('Debe indicar al menos un pago');
+        }
+
+        $paid = round(array_sum(array_column($normalized, 'amount')), 2);
+        if (abs($paid - $saleTotal) > 0.009) {
+            throw new Exception(
+                "La suma de pagos ({$paid}) no coincide con el total de la venta ({$saleTotal})"
+            );
+        }
+
+        return $normalized;
     }
 
 }

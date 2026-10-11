@@ -40,6 +40,20 @@ class ProductController
 
 
     /**
+     * Totales vendidos por producto (historial completo, solo admin).
+     * GET /api/products/sold-totals
+     */
+    public function soldTotals(): void
+    {
+        try {
+            $products = $this->productService->getSoldTotals();
+            Response::json(['status' => 'success', 'data' => $products]);
+        } catch (Exception $e) {
+            Response::error('Error al obtener productos vendidos: ' . $e->getMessage(), 500);
+        }
+    }
+
+    /**
      * Crea un nuevo producto
      * POST /api/products
      */

@@ -8,7 +8,9 @@ services:
     command:
       - --character-set-server=utf8mb4
       - --collation-server=utf8mb4_unicode_ci
+      - --default-time-zone=-04:00
     environment:
+      TZ: America/La_Paz
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpassword}
       MYSQL_DATABASE: ${MYSQL_DATABASE:-app_db}
       MYSQL_USER: ${MYSQL_USER:-app_user}
@@ -35,6 +37,7 @@ services:
     env_file:
       - .env
     environment:
+      TZ: America/La_Paz
       DB_HOST: db
       DB_NAME: ${MYSQL_DATABASE:-app_db}
       DB_USER: ${MYSQL_USER:-app_user}

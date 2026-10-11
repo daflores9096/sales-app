@@ -1,8 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowDown, ArrowUp, ArrowUpDown, ChevronLeft, ChevronRight, Pencil, Search, Trash2 } from 'lucide-react';
+import { ArrowDown, ArrowUp, ArrowUpDown, ChevronLeft, ChevronRight, FileDown, Pencil, Search, Trash2 } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import Modal from '../components/Modal.jsx';
-import { createProduct, deleteProduct, getProducts, updateProduct } from '../api.js';
+import { useAuth } from '../auth.jsx';
+import { createProduct, deleteProduct, getProducts, getProductsSoldTotals, updateProduct } from '../api.js';
+import { toIsoDate } from '../date.js';
 
 const emptyForm = { id: null, name: '', price: '', price_sale: '', stock: '', barcode: '', brand: '' };
 
@@ -51,9 +54,11 @@ function compareValues(a, b, type) {
 }
 
 export default function ProductsPage() {
+  const { isAdminLike } = useAuth();
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [exportingSold, setExportingSold] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [form, setForm] = useState(emptyForm);
@@ -197,6 +202,77 @@ export default function ProductsPage() {
     }
   }
 
+  function exportToExcel() {
+    if (!products.length) {
+      setError('No hay productos para exportar');
+      return;
+    }
+
+    const rows = products.map((p) => ({
+      nombre_producto: p.name ?? '',
+      barcode: p.barcode ?? '',
+      marca: p.brand ?? '',
+      precio_compra: Number(p.price ?? 0),
+      precio_venta: Number(p.price_sale ?? p.price ?? 0),
+      stock: Number(p.stock ?? 0),
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(rows, {
+      header: ['nombre_producto', 'barcode', 'marca', 'precio_compra', 'precio_venta', 'stock'],
+    });
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Productos');
+
+    const stamp = toIsoDate();
+    XLSX.writeFile(workbook, `productos_${stamp}.xlsx`);
+  }
+
+  async function exportSoldToExcel() {
+    if (!isAdminLike) return;
+
+    setExportingSold(true);
+    setError('');
+    try {
+      const res = await getProductsSoldTotals();
+      const list = res.data ?? [];
+      if (!list.length) {
+        setError('No hay productos para exportar');
+        return;
+      }
+
+      const rows = list.map((p) => ({
+        nombre_producto: p.name ?? '',
+        barcode: p.barcode ?? '',
+        marca: p.brand ?? '',
+        precio_compra: Number(p.price ?? 0),
+        precio_venta: Number(p.price_sale ?? p.price ?? 0),
+        vendidos: Number(p.sold ?? 0),
+        stock_actual: Number(p.stock ?? 0),
+      }));
+
+      const worksheet = XLSX.utils.json_to_sheet(rows, {
+        header: [
+          'nombre_producto',
+          'barcode',
+          'marca',
+          'precio_compra',
+          'precio_venta',
+          'vendidos',
+          'stock_actual',
+        ],
+      });
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Productos vendidos');
+
+      const stamp = toIsoDate();
+      XLSX.writeFile(workbook, `productos_vendidos_${stamp}.xlsx`);
+    } catch (err) {
+      setError(err.message || 'No se pudo exportar productos vendidos');
+    } finally {
+      setExportingSold(false);
+    }
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -204,10 +280,30 @@ export default function ProductsPage() {
           <h1 className="text-2xl font-bold text-white">Productos</h1>
           <p className="text-sm text-white/75">Gestión de inventario</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={exportToExcel}
+            disabled={!products.length}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-indigo-200 px-3 py-1.5 text-sm text-white hover:bg-indigo-50 hover:text-[#0b2545] disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <FileDown size={16} />
+            Exportar a Excel
+          </button>
+          {isAdminLike && (
+            <button
+              type="button"
+              onClick={exportSoldToExcel}
+              disabled={exportingSold}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-indigo-200 px-3 py-1.5 text-sm text-white hover:bg-indigo-50 hover:text-[#0b2545] disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <FileDown size={16} />
+              {exportingSold ? 'Exportando…' : 'Exportar Productos Vendidos'}
+            </button>
+          )}
           <Link
             to="/products/import"
-            className="rounded-lg border border-indigo-200 px-3 py-1.5 text-sm text-white hover:bg-indigo-50"
+            className="rounded-lg border border-indigo-200 px-3 py-1.5 text-sm text-white hover:bg-indigo-50 hover:text-[#0b2545]"
           >
             Importar Excel
           </Link>

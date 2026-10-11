@@ -123,6 +123,10 @@ export function getProducts(search) {
   return api('/api/products', { params: search ? { search } : {} });
 }
 
+export function getProductsSoldTotals() {
+  return api('/api/products/sold-totals');
+}
+
 export function createProduct(data) {
   return api('/api/products', { method: 'POST', body: data });
 }

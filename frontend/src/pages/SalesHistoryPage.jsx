@@ -3,45 +3,17 @@ import { Ban, ChevronLeft, ChevronRight, Eye, Search } from 'lucide-react';
 import Modal from '../components/Modal.jsx';
 import { cancelSale, getSaleDetail, getSales, getUsers } from '../api.js';
 import { useAuth } from '../auth.jsx';
+import { formatDateTime, rangeForPeriod, toIsoDate } from '../date.js';
 
 const PAYMENT_LABELS = {
   cash: 'Efectivo',
   qr: 'QR',
   card: 'Tarjeta',
+  mixed: 'Mixto',
 };
 
-function toIsoDate(date) {
-  const d = new Date(date);
-  d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
-  return d.toISOString().slice(0, 10);
-}
-
-function rangeForPeriod(period, customFrom, customTo) {
-  const now = new Date();
-  const today = toIsoDate(now);
-
-  if (period === 'all') {
-    return { from: undefined, to: undefined };
-  }
-
-  if (period === 'today') {
-    return { from: today, to: today };
-  }
-
-  if (period === 'week') {
-    const start = new Date(now);
-    const day = start.getDay();
-    const diff = day === 0 ? -6 : 1 - day;
-    start.setDate(start.getDate() + diff);
-    return { from: toIsoDate(start), to: today };
-  }
-
-  if (period === 'month') {
-    const start = new Date(now.getFullYear(), now.getMonth(), 1);
-    return { from: toIsoDate(start), to: today };
-  }
-
-  return { from: customFrom || today, to: customTo || today };
+function formatPaymentLabel(method) {
+  return PAYMENT_LABELS[method] ?? 'Efectivo';
 }
 
 export default function SalesHistoryPage({ adminView = true }) {
@@ -192,9 +164,9 @@ export default function SalesHistoryPage({ adminView = true }) {
                 {sales.map((s) => (
                   <tr key={s.id} className="border-t border-slate-100">
                     <td className="px-4 py-3">{s.id}</td>
-                    <td className="px-4 py-3">{new Date(s.created_at).toLocaleString()}</td>
+                    <td className="px-4 py-3">{formatDateTime(s.created_at)}</td>
                     <td className="px-4 py-3">{s.username ?? '—'}</td>
-                    <td className="px-4 py-3">{PAYMENT_LABELS[s.payment_method] ?? 'Efectivo'}</td>
+                    <td className="px-4 py-3">{formatPaymentLabel(s.payment_method)}</td>
                     <td className="px-4 py-3 font-semibold">${s.total}</td>
                     <td className="px-4 py-3">
                       <span
@@ -245,12 +217,31 @@ export default function SalesHistoryPage({ adminView = true }) {
           ) : (
             <>
               <p className="text-sm text-slate-500">
-                Fecha: {new Date(selectedSale.sale.created_at).toLocaleString()}
+                Fecha: {formatDateTime(selectedSale.sale.created_at)}
               </p>
               <p className="text-sm text-slate-500">Usuario: {selectedSale.sale.username}</p>
               <p className="text-sm text-slate-500">
-                Tipo de venta: {PAYMENT_LABELS[selectedSale.sale.payment_method] ?? 'Efectivo'}
+                Tipo de venta: {formatPaymentLabel(selectedSale.sale.payment_method)}
               </p>
+              {(selectedSale.payments ?? []).length > 0 && (
+                <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
+                  <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    Desglose de pagos
+                  </div>
+                  <ul className="space-y-1 text-sm">
+                    {selectedSale.payments.map((payment, index) => (
+                      <li key={payment.id ?? index} className="flex justify-between gap-3">
+                        <span className="text-slate-600">
+                          {formatPaymentLabel(payment.payment_method)}
+                        </span>
+                        <span className="font-semibold text-slate-800">
+                          ${Number(payment.amount).toFixed(2)}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
               <table className="mt-4 w-full text-sm">
                 <thead>
                   <tr className="text-left text-slate-600">
@@ -376,6 +367,7 @@ function ListToolbar({
             <option value="cash">Efectivo</option>
             <option value="qr">QR</option>
             <option value="card">Tarjeta</option>
+            <option value="mixed">Mixto</option>
           </select>
         </div>
 

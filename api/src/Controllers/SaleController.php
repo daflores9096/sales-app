@@ -21,29 +21,46 @@ class SaleController
      */
     public function create(object $user): void
     {
-        $input = json_decode(file_get_contents('php://input'), true);
+        $input = json_decode(file_get_contents('php://input'), true) ?? [];
 
         $items = $input['items'] ?? [];
-        $paymentMethod = $input['payment_method'] ?? 'cash';
+        $payments = $input['payments'] ?? null;
+
+        // Compatibilidad: payment_method único sin array payments
+        if (!is_array($payments) || count($payments) === 0) {
+            $paymentMethod = $input['payment_method'] ?? 'cash';
+            if (!in_array($paymentMethod, ['cash', 'qr', 'card'], true)) {
+                Response::error('Tipo de venta inválido', 422);
+                return;
+            }
+            $payments = [[
+                'payment_method' => $paymentMethod,
+                'fill_total' => true,
+            ]];
+        }
 
         if (empty($items)) {
             Response::error('Debe incluir al menos un producto en la venta', 400);
             return;
         }
 
-        if (!in_array($paymentMethod, ['cash', 'qr', 'card'], true)) {
-            Response::error('Tipo de venta inválido', 422);
-            return;
-        }
-
         try {
-            $saleId = $this->saleService->createSale($user->sub, $items, $paymentMethod);
+            $saleId = $this->saleService->createSale($user->sub, $items, $payments);
             Response::json([
                 'status' => 'success',
                 'data' => ['sale_id' => $saleId]
             ], 201);
         } catch (Exception $e) {
-            Response::error('Error al registrar la venta: ' . $e->getMessage(), 500);
+            $message = $e->getMessage();
+            $lower = mb_strtolower($message);
+            $code = (
+                str_contains($lower, 'coincide')
+                || str_contains($lower, 'inválido')
+                || str_contains($lower, 'debe')
+                || str_contains($lower, 'insuficiente')
+                || str_contains($lower, 'requer')
+            ) ? 422 : 500;
+            Response::error('Error al registrar la venta: ' . $message, $code);
         }
     }
 

@@ -18,6 +18,11 @@ class ProductService
         return $this->productRepository->findAll();
     }
 
+    public function getSoldTotals(): array
+    {
+        return $this->productRepository->findAllWithSoldTotals();
+    }
+
     public function create(
         string $name,
         float $price,

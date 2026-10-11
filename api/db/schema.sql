@@ -63,6 +63,8 @@ INSERT INTO products (name, price, price_sale, stock, barcode, brand) VALUES
 -- =====================================
 -- Tabla: sales
 -- =====================================
+DROP TABLE IF EXISTS sale_payments;
+DROP TABLE IF EXISTS sale_items;
 DROP TABLE IF EXISTS sales;
 
 CREATE TABLE sales (
@@ -71,15 +73,13 @@ CREATE TABLE sales (
                        total DECIMAL(10,2) NOT NULL DEFAULT 0.00,
                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                        status ENUM('active', 'cancelled') DEFAULT 'active',
-                       payment_method ENUM('cash', 'qr', 'card') NOT NULL DEFAULT 'cash',
+                       payment_method ENUM('cash', 'qr', 'card', 'mixed') NOT NULL DEFAULT 'cash',
                        FOREIGN KEY (user_id) REFERENCES users(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- =====================================
 -- Tabla: sale_items
 -- =====================================
-DROP TABLE IF EXISTS sale_items;
-
 CREATE TABLE sale_items (
                             id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
                             sale_id INT UNSIGNED NOT NULL,
@@ -88,6 +88,17 @@ CREATE TABLE sale_items (
                             price DECIMAL(10,2) NOT NULL,
                             FOREIGN KEY (sale_id) REFERENCES sales(id) ON DELETE CASCADE,
                             FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- =====================================
+-- Tabla: sale_payments (pagos parciales / mixtos)
+-- =====================================
+CREATE TABLE sale_payments (
+                               id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                               sale_id INT UNSIGNED NOT NULL,
+                               payment_method ENUM('cash', 'qr', 'card') NOT NULL,
+                               amount DECIMAL(10,2) NOT NULL,
+                               FOREIGN KEY (sale_id) REFERENCES sales(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- =====================================
@@ -128,6 +139,7 @@ CREATE TABLE combo_items (
 -- ALTER TABLE sales ADD COLUMN status ENUM('active', 'cancelled') DEFAULT 'active';
 -- ALTER TABLE products ADD COLUMN is_combo TINYINT(1) NOT NULL DEFAULT 0;
 -- ALTER TABLE products ADD COLUMN active TINYINT(1) NOT NULL DEFAULT 1;
+-- ALTER TABLE sales MODIFY payment_method ENUM('cash','qr','card','mixed') NOT NULL DEFAULT 'cash';
 
 -- correr el siguiente comando para crear superadmin:StrongP@ssw0rd
 -- docker exec -it php_app php scripts/create_admin.php

@@ -22,9 +22,10 @@ class ReportController
     public function daily(object $user): void
     {
         try {
+            [$from, $to] = $this->reportDateRange($user);
             $data = $this->reportService->getSalesByDay(
-                $_GET['from'] ?? null,
-                $_GET['to'] ?? null,
+                $from,
+                $to,
                 $this->reportUserId($user)
             );
             Response::json(['status' => 'success', 'data' => $data]);
@@ -40,9 +41,10 @@ class ReportController
     public function byProduct(object $user): void
     {
         try {
+            [$from, $to] = $this->reportDateRange($user);
             $data = $this->reportService->getSalesByProduct(
-                $_GET['from'] ?? null,
-                $_GET['to'] ?? null,
+                $from,
+                $to,
                 $this->reportUserId($user)
             );
             Response::json(['status' => 'success', 'data' => $data]);
@@ -58,9 +60,10 @@ class ReportController
     public function byPaymentMethod(object $user): void
     {
         try {
+            [$from, $to] = $this->reportDateRange($user);
             $data = $this->reportService->getSalesByPaymentMethod(
-                $_GET['from'] ?? null,
-                $_GET['to'] ?? null,
+                $from,
+                $to,
                 $this->reportUserId($user)
             );
             Response::json(['status' => 'success', 'data' => $data]);
@@ -76,9 +79,10 @@ class ReportController
     public function byUser(object $user): void
     {
         try {
+            [$from, $to] = $this->reportDateRange($user);
             $data = $this->reportService->getSalesByUser(
-                $_GET['from'] ?? null,
-                $_GET['to'] ?? null,
+                $from,
+                $to,
                 $this->reportUserId($user)
             );
             Response::json(['status' => 'success', 'data' => $data]);
@@ -94,9 +98,10 @@ class ReportController
     public function total(object $user): void
     {
         try {
+            [$from, $to] = $this->reportDateRange($user);
             $data = $this->reportService->getTotalSales(
-                $_GET['from'] ?? null,
-                $_GET['to'] ?? null,
+                $from,
+                $to,
                 $this->reportUserId($user)
             );
             Response::json(['status' => 'success', 'data' => $data]);
@@ -105,8 +110,29 @@ class ReportController
         }
     }
 
+    private function isAdminLike(object $user): bool
+    {
+        return in_array((int)$user->role_id, [1, 2], true);
+    }
+
     private function reportUserId(object $user): ?int
     {
-        return in_array((int)$user->role_id, [1, 2], true) ? null : (int)$user->sub;
+        return $this->isAdminLike($user) ? null : (int)$user->sub;
+    }
+
+    /**
+     * Admin/superadmin: usan from/to del request.
+     * Vendedores (user): solo día actual.
+     *
+     * @return array{0:?string,1:?string}
+     */
+    private function reportDateRange(object $user): array
+    {
+        if ($this->isAdminLike($user)) {
+            return [$_GET['from'] ?? null, $_GET['to'] ?? null];
+        }
+
+        $today = (new \DateTimeImmutable('today'))->format('Y-m-d');
+        return [$today, $today];
     }
 }
