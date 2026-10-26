@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Ban, ChevronLeft, ChevronRight, Eye, Search } from 'lucide-react';
+import { Ban, ChevronLeft, ChevronRight, Eye, Search, X } from 'lucide-react';
 import Modal from '../components/Modal.jsx';
 import { cancelSale, getSaleDetail, getSales, getUsers } from '../api.js';
 import { useAuth } from '../auth.jsx';
@@ -396,11 +396,22 @@ function ListToolbar({
         <div className="relative min-w-[220px] flex-1">
           <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
           <input
-            className="w-full rounded-xl border border-slate-300 py-2 pl-10 pr-3 text-sm"
+            className="w-full rounded-xl border border-slate-300 py-2 pl-10 pr-10 text-sm"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Buscar por venta, usuario o producto..."
           />
+          {search && (
+            <button
+              type="button"
+              onClick={() => setSearch('')}
+              className="absolute right-2 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+              title="Limpiar búsqueda"
+              aria-label="Limpiar búsqueda"
+            >
+              <X size={16} />
+            </button>
+          )}
         </div>
         <div className="flex flex-wrap items-center gap-2 text-sm text-slate-500">
           <span>{total} resultados</span>
