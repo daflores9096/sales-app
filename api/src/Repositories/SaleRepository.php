@@ -270,8 +270,22 @@ class SaleRepository
         }
 
         if ($q) {
-            $where[] = '(u.username LIKE :q OR s.id LIKE :q)';
-            $params['q'] = "%$q%";
+            // PDO nativo no permite reutilizar el mismo named parameter.
+            $where[] = '(
+                u.username LIKE :q_username
+                OR CAST(s.id AS CHAR) LIKE :q_id
+                OR EXISTS (
+                    SELECT 1
+                    FROM sale_items si
+                    JOIN products p ON p.id = si.product_id
+                    WHERE si.sale_id = s.id
+                      AND p.name LIKE :q_product
+                )
+            )';
+            $like = "%$q%";
+            $params['q_username'] = $like;
+            $params['q_id'] = $like;
+            $params['q_product'] = $like;
         }
 
         $whereSql = $where ? 'WHERE ' . implode(' AND ', $where) : '';
